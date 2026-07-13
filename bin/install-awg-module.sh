@@ -24,6 +24,13 @@ apt-get install -y -q build-essential dkms linux-headers-$(uname -r) git unzip c
     || apt-get install -y -q build-essential dkms linux-headers-amd64 git unzip curl \
     || true
 
+# openresolv is required by awg-quick when the .conf has a DNS= line: awg-quick
+# calls `resolvconf -a` to register the tunnel DNS, and the command is absent
+# on a minimal Debian/Ubuntu install (no resolvconf binary). Without it
+# `awg-quick up` fails with "resolvconf: command not found" and the interface
+# never comes up.
+apt-get install -y -q openresolv 2>/dev/null || echo -e "${YELLOW}openresolv не установлен — awg-quick может падать на DNS=${NC}"
+
 # 2. Check kernel headers
 if [[ ! -d /lib/modules/$(uname -r)/build ]]; then
     echo -e "${RED}Заголовки ядра для $(uname -r) не найдены.${NC}"

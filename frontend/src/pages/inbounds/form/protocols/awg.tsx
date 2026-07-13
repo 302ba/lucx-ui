@@ -1,35 +1,48 @@
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
+import { App, Button, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 
-import { Wireguard } from '@/utils';
+import { HttpUtil, Wireguard } from '@/utils';
 import { useOutboundTags } from '@/api/queries/useOutboundTags';
 
-// generateAwgObfuscation fills the Jc/Jmin/Jmax, S1-S4, H1-H4 fields for a
-// given obfLevel, mirroring the Go GenerateAWGParams so the form can preview
-// values before the backend persists them. The backend regenerates them on
-// save when obfLevel/profile change, so this is for immediate display only.
-function generateAwgObfuscation(level: number) {
-  const r = (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1));
-  const hexRange = (min: number, max: number) => `${min + Math.floor(Math.random() * (max - min))}`;
-  let jc = 0, jmin = 0, jmax = 0;
-  let s1 = 0, s2 = 0, s3 = 0, s4 = 0;
-  let h1 = '', h2 = '', h3 = '', h4 = '';
-  if (level >= 2) {
-    jc = r(3, 10);
-    jmin = r(50, 100);
-    jmax = r(150, 250);
-    s1 = r(20, 100); s2 = r(20, 100); s3 = r(20, 100); s4 = r(20, 100);
-    h1 = hexRange(100000, 500000);
-    h2 = hexRange(600000, 900000);
-    h3 = hexRange(1000000, 1500000);
-    h4 = hexRange(1600000, 2000000);
-  }
-  return { jc, jmin, jmax, s1, s2, s3, s4, h1, h2, h3, h4 };
+// LUCX-HOOK: AWG — map the panel obfLevel (1/2/3) and mimicryProfile to the
+// backend cps package's profile enums. The backend owns the invariant-
+// enforcing RNG (Jmin<Jmax, |S1+56-S2|>=10, H1-H4 in disjoint quadrants) and
+// the CPS packet generators (TLS/DNS/SIP/QUIC), so the form calls the API
+// instead of a local Math.random stub.
+const OBF_PROFILE: Record<number, string> = { 1: 'lite', 2: 'standard', 3: 'pro' };
+
+// obfLevel 1 = no CPS; 2 = I1 only; 3 = full I1-I5. Mirrors the form's
+// existing Select options (1 — none, 2 — Jc/S/H, 3 — full + CPS).
+function levelToFullI1I5(level: number): boolean {
+  return level >= 3;
 }
+
+// generateAwgObfuscationFromBackend calls /panel/api/inbounds/awg/generateObfuscation
+// to get a fresh Jc/Jmin/Jmax/S1-S4/H1-H4 + I1-I5 set from the server. Returns
+// null on failure (the caller falls back to leaving the fields untouched).
+async function generateAwgObfuscationFromBackend(form: ReturnType<typeof Form.useFormInstance>): Promise<Record<string, unknown> | null> {
+  const level = (form.getFieldValue(['settings', 'obfLevel']) as number) ?? 2;
+  const mimicryProfile = (form.getFieldValue(['settings', 'mimicryProfile']) as string) || 'quic';
+  const region = (form.getFieldValue(['settings', 'region']) as string) || 'world';
+  const obfProfile = OBF_PROFILE[level] ?? 'standard';
+  const fullI1I5 = levelToFullI1I5(level);
+  const msg = await HttpUtil.post('/panel/api/inbounds/awg/generateObfuscation', {
+    obfProfile,
+    mimicryProfile,
+    region,
+    domain: '',
+    fullI1I5,
+  });
+  if (!msg?.success) return null;
+  return (msg?.obj ?? null) as Record<string, unknown> | null;
+}
+// END LUCX-HOOK
 
 export default function AwgFields() {
   const { t } = useTranslation();
+  const { message: messageApi } = App.useApp();
   const form = Form.useFormInstance();
   const obfLevel = Form.useWatch(['settings', 'obfLevel'], form) as number | undefined;
   const routeThroughXray = Form.useWatch(['settings', 'routeThroughXray'], form) as boolean | undefined;
@@ -43,11 +56,23 @@ export default function AwgFields() {
     form.setFieldValue(['settings', 'presharedKey'], psk);
   };
 
-  const regenerateObfuscation = () => {
-    const level = (form.getFieldValue(['settings', 'obfLevel']) as number) ?? 2;
-    const obf = generateAwgObfuscation(level);
-    form.setFieldsValue({ settings: { ...obf } });
+  // LUCX-HOOK: AWG — generate obfuscation via the backend (invariants + CPS).
+  const [generating, setGenerating] = useState(false);
+  const regenerateObfuscation = async () => {
+    setGenerating(true);
+    try {
+      const obf = await generateAwgObfuscationFromBackend(form);
+      if (!obf) {
+        messageApi.error(t('pages.inbounds.form.awgRegenerateFailed'));
+        return;
+      }
+      form.setFieldsValue({ settings: obf });
+      messageApi.success(t('pages.inbounds.form.awgRegenerateDone'));
+    } finally {
+      setGenerating(false);
+    }
   };
+  // END LUCX-HOOK
 
   return (
     <>
@@ -96,7 +121,7 @@ export default function AwgFields() {
       </Form.Item>
 
       <Form.Item label={t('pages.inbounds.form.awgObfuscation')}>
-        <Button icon={<ReloadOutlined />} onClick={regenerateObfuscation}>
+        <Button icon={<ReloadOutlined />} onClick={regenerateObfuscation} loading={generating}>
           {t('pages.inbounds.form.awgRegenerate')}
         </Button>
       </Form.Item>

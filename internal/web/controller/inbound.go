@@ -79,6 +79,9 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/import", a.importInbound)
 	g.POST("/:id/fallbacks", a.setFallbacks)
 	g.POST("/pushClientTraffics", a.pushClientTraffics)
+	// LUCX-HOOK: AWG — obfuscation generation endpoint (params + CPS I1-I5).
+	g.POST("/awg/generateObfuscation", a.awgGenerateObfuscation)
+	// END LUCX-HOOK
 }
 
 // getInbounds retrieves the list of inbounds for the logged-in user.
