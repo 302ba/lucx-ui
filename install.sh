@@ -11,6 +11,13 @@ cur_dir=$(pwd)
 xui_folder="${XUI_MAIN_FOLDER:=/usr/local/x-ui}"
 xui_service="${XUI_SERVICE:=/etc/systemd/system}"
 
+# LUCX-HOOK: LucX-UI fork source — replaces MHSanaei/3x-ui for our builds.
+# Release tarball is downloaded from this repo; raw shell scripts (x-ui.sh,
+# x-ui.rc, x-ui.service.*) from this branch.
+LUCX_REPO="AlexeyLCP/lucx-ui"
+LUCX_BRANCH="feat/awg-sidecar-v3.5.0"
+# END LUCX-HOOK
+
 # check root
 [[ $EUID -ne 0 ]] && echo -e "${red}Fatal error: ${plain} Please run this script with root privilege \n " && exit 1
 
@@ -1418,13 +1425,17 @@ install_x-ui() {
 
     # Download resources
     if [ $# == 0 ]; then
-        tag_version=$(curl -Ls --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 60 "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        # LUCX-HOOK: fetch latest release tag from LucX-UI fork
+        tag_version=$(curl -Ls --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 60 "https://api.github.com/repos/${LUCX_REPO}/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        # END LUCX-HOOK
         if [[ ! -n "$tag_version" ]]; then
             echo -e "${red}Failed to fetch x-ui version, it may be due to GitHub API restrictions, please try it later${plain}"
             exit 1
         fi
         echo -e "Got x-ui latest version: ${tag_version}, beginning the installation..."
-        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz
+        # LUCX-HOOK: download release tarball from LucX-UI fork
+        curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz https://github.com/${LUCX_REPO}/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz
+        # END LUCX-HOOK
         if [[ $? -ne 0 ]]; then
             echo -e "${red}Downloading x-ui failed, please be sure that your server can access GitHub ${plain}"
             exit 1
@@ -1452,7 +1463,9 @@ install_x-ui() {
             fi
         fi
 
-        url="https://github.com/MHSanaei/3x-ui/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
+        # LUCX-HOOK: fallback release URL for LucX-UI fork
+        url="https://github.com/${LUCX_REPO}/releases/download/${tag_version}/x-ui-linux-$(arch).tar.gz"
+        # END LUCX-HOOK
         echo -e "Beginning to install x-ui ${tag_version}"
         curl -fLR --retry 5 --retry-delay 3 --connect-timeout 15 --max-time 300 -o ${xui_folder}-linux-$(arch).tar.gz ${url}
         if [[ $? -ne 0 ]]; then
@@ -1467,7 +1480,9 @@ install_x-ui() {
     fi
     local xui_script_temp="/usr/bin/x-ui-temp.$$"
     rm -f "${xui_script_temp}"
-    curl -fLRo "${xui_script_temp}" https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.sh
+    # LUCX-HOOK: fetch x-ui.sh from LucX-UI fork branch
+    curl -fLRo "${xui_script_temp}" https://raw.githubusercontent.com/${LUCX_REPO}/${LUCX_BRANCH}/x-ui.sh
+    # END LUCX-HOOK
     if [[ $? -ne 0 ]]; then
         rm -f "${xui_script_temp}"
         echo -e "${red}Failed to download x-ui.sh${plain}"
@@ -1559,7 +1574,9 @@ install_x-ui() {
     if [[ $release == "alpine" ]]; then
         xui_rc_temp="/etc/init.d/x-ui.tmp.$$"
         rm -f "${xui_rc_temp}"
-        curl -fLRo "${xui_rc_temp}" https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.rc
+        # LUCX-HOOK: fetch x-ui.rc from LucX-UI fork branch
+        curl -fLRo "${xui_rc_temp}" https://raw.githubusercontent.com/${LUCX_REPO}/${LUCX_BRANCH}/x-ui.rc
+        # END LUCX-HOOK
         if [[ $? -ne 0 ]]; then
             rm -f "${xui_rc_temp}"
             echo -e "${red}Failed to download x-ui.rc${plain}"
@@ -1622,17 +1639,19 @@ install_x-ui() {
         # If service file not found in tar.gz, download from GitHub
         if [ "$service_installed" = false ]; then
             echo -e "${yellow}Service files not found in tar.gz, downloading from GitHub...${plain}"
+            # LUCX-HOOK: fetch systemd service units from LucX-UI fork branch
             case "${release}" in
                 ubuntu | debian | armbian)
-                    service_unit_url="https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.service.debian"
+                    service_unit_url="https://raw.githubusercontent.com/${LUCX_REPO}/${LUCX_BRANCH}/x-ui.service.debian"
                     ;;
                 arch | manjaro | parch)
-                    service_unit_url="https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.service.arch"
+                    service_unit_url="https://raw.githubusercontent.com/${LUCX_REPO}/${LUCX_BRANCH}/x-ui.service.arch"
                     ;;
                 *)
-                    service_unit_url="https://raw.githubusercontent.com/MHSanaei/3x-ui/main/x-ui.service.rhel"
+                    service_unit_url="https://raw.githubusercontent.com/${LUCX_REPO}/${LUCX_BRANCH}/x-ui.service.rhel"
                     ;;
             esac
+            # END LUCX-HOOK
 
             if ! _install_xui_service_unit "$service_unit_url" "true"; then
                 echo -e "${red}Failed to install x-ui.service from GitHub${plain}"
