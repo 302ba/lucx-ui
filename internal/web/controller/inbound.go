@@ -81,6 +81,8 @@ func (a *InboundController) initRouter(g *gin.RouterGroup) {
 	g.POST("/pushClientTraffics", a.pushClientTraffics)
 	// LUCX-HOOK: AWG — obfuscation generation endpoint (params + CPS I1-I5).
 	g.POST("/awg/generateObfuscation", a.awgGenerateObfuscation)
+	// LUCX-HOOK: AWG — host scan endpoint (QUIC capture → I1-I5).
+	g.POST("/awg/captureHost", a.awgCaptureHost)
 	// END LUCX-HOOK
 }
 

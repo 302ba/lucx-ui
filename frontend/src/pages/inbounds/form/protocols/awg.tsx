@@ -38,6 +38,16 @@ async function generateAwgObfuscationFromBackend(form: ReturnType<typeof Form.us
   if (!msg?.success) return null;
   return (msg?.obj ?? null) as Record<string, unknown> | null;
 }
+
+// LUCX-HOOK: AWG — capture a real QUIC handshake from the given domain and
+// use it as the I1-I5 CPS signature (hoaxisr/awg-manager pattern). The user
+// enters a front host (e.g. google.com); the server sends a QUIC Initial,
+// reads the replies, and returns the packet bytes as CPS strings.
+async function captureHostSignature(domain: string): Promise<Record<string, string> | null> {
+  const msg = await HttpUtil.post('/panel/api/inbounds/awg/captureHost', { domain });
+  if (!msg?.success) return null;
+  return (msg?.obj ?? null) as Record<string, string> | null;
+}
 // END LUCX-HOOK
 
 export default function AwgFields() {
@@ -70,6 +80,30 @@ export default function AwgFields() {
       messageApi.success(t('pages.inbounds.form.awgRegenerateDone'));
     } finally {
       setGenerating(false);
+    }
+  };
+
+  // LUCX-HOOK: AWG — capture a real QUIC handshake from a front domain and
+  // fill I1-I5 with the captured packet bytes (hoaxisr/awg-manager pattern).
+  const [captureDomain, setCaptureDomain] = useState('');
+  const [capturing, setCapturing] = useState(false);
+  const captureHost = async () => {
+    const dom = captureDomain.trim();
+    if (!dom) {
+      messageApi.error(t('pages.inbounds.form.awgCaptureDomainRequired'));
+      return;
+    }
+    setCapturing(true);
+    try {
+      const res = await captureHostSignature(dom);
+      if (!res || !res.i1) {
+        messageApi.error(t('pages.inbounds.form.awgCaptureFailed'));
+        return;
+      }
+      form.setFieldsValue({ settings: { i1: res.i1, i2: res.i2, i3: res.i3, i4: res.i4, i5: res.i5 } });
+      messageApi.success(t('pages.inbounds.form.awgCaptureDone'));
+    } finally {
+      setCapturing(false);
     }
   };
   // END LUCX-HOOK
@@ -125,6 +159,22 @@ export default function AwgFields() {
           {t('pages.inbounds.form.awgRegenerate')}
         </Button>
       </Form.Item>
+
+      {/* LUCX-HOOK: AWG — host scan (QUIC capture → I1-I5, hoaxisr/awg-manager pattern) */}
+      <Form.Item label={t('pages.inbounds.form.awgCaptureHost')} tooltip={t('pages.inbounds.form.awgCaptureHostHint')}>
+        <Space.Compact style={{ display: 'flex' }}>
+          <Input
+            placeholder="google.com"
+            value={captureDomain}
+            onChange={(e) => setCaptureDomain(e.target.value)}
+            style={{ flex: 1 }}
+          />
+          <Button onClick={captureHost} loading={capturing}>
+            {t('pages.inbounds.form.awgCapture')}
+          </Button>
+        </Space.Compact>
+      </Form.Item>
+      {/* END LUCX-HOOK */}
 
       {(obfLevel ?? 2) >= 2 && (
         <>

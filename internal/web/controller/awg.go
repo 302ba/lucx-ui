@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/awg/cps"
+	"github.com/mhsanaei/3x-ui/v3/internal/awg/signature"
 )
 
 // awgGenerateObfuscationRequest is the body the AWG inbound form posts to
@@ -81,6 +82,44 @@ func (a *InboundController) awgGenerateObfuscation(c *gin.Context) {
 		"i3":  cpsResult.I3,
 		"i4":  cpsResult.I4,
 		"i5":  cpsResult.I5,
+	}, nil)
+}
+
+// awgCaptureHostRequest is the body the AWG inbound form posts to
+// /panel/api/inbounds/awg/captureHost. domain is the front host whose real
+// QUIC handshake should be captured and used as the I1-I5 CPS signature.
+type awgCaptureHostRequest struct {
+	Domain string `json:"domain"`
+}
+
+// awgCaptureHost captures a real QUIC handshake from the given domain (UDP
+// 443) and returns the I1-I5 packet strings. The user enters a host (e.g.
+// google.com) and the AWG traffic is then masked under that host's real
+// QUIC-handshake bytes. Ported from hoaxisr/awg-manager. Returns an error
+// when the host doesn't speak QUIC — AWG only supports QUIC-fronted hosts.
+//
+// LUCX-HOOK: AWG host scan endpoint.
+func (a *InboundController) awgCaptureHost(c *gin.Context) {
+	var req awgCaptureHostRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		jsonMsg(c, "invalid request body", err)
+		return
+	}
+	if req.Domain == "" {
+		jsonMsg(c, "awg capture: domain required", nil)
+		return
+	}
+	res, err := signature.Capture(req.Domain)
+	if err != nil {
+		jsonMsg(c, "awg capture failed: "+err.Error(), nil)
+		return
+	}
+	jsonObj(c, gin.H{
+		"i1": res.I1,
+		"i2": res.I2,
+		"i3": res.I3,
+		"i4": res.I4,
+		"i5": res.I5,
 	}, nil)
 }
 // END LUCX-HOOK
