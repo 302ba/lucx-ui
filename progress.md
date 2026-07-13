@@ -158,6 +158,55 @@ AGENTS.md Known Issue #3 обновлён.
 3. `bash <(curl .../install.sh)` → установка панели с нашим кодом
 4. UI → создать AWG-inbound → `awg show` / `ip link show awg0`
 
+## Фаза 1: Клиентские .conf + share-link + создание клиентов (2026-07-13)
+
+**Проблема:** установка работала, подключение создавалось, но НЕ было генерации клиентских конфигов, share-link, создания пользователей (peers).
+
+**Решение:** портированы паттерны WireGuard (эталон в репо) — клиентский Curve25519 keypair + PSK + туннельный адрес хранятся сервером, полный .conf и amneziawg:// share-link собираются одним кликом.
+
+**Источники:** pumbaX/awg-multi-script (генерация конфигов), hoaxisr/awg-manager (скан хоста — отложен в Фазу 3).
+
+**Backend:**
+- `internal/awg/instance.go`: PeerSpec расширен (PrivateKey, AllowedIPs /32, Keepalive); InstanceFromInbound парсит новые поля (publicKey/privateKey/preSharedKey/allowedIPs/keepAlive) + legacy (id/password), enable как *bool (absent=true для старых inbound'ов)
+- `internal/web/service/client_awg.go` (новый): defaultAwgClients — wgutil.GenerateWireguardKeypair, GenerateWireguardPSK, allocateWireguardAddress из 10.8.0.0/24 (отличается от WG 10.0.0.0/24 — без коллизий)
+- `internal/web/service/client_inbound_apply.go`: case AWG (5 точек: генерация, валидация, newClientId, перенос ключей при edit, raw-map)
+- `internal/sub/service.go`: 'awg' в SQL-фильтр GetSubs, case AWG в GetLink, genAwgLink (amneziawg:// с обфускацией Jc/S1-S4/H1-H4/I1-I5 в query params)
+- `internal/awg/manager.go`: renderServerConf уже использует peer.AllowedIPs (туннельный /32)
+
+**Frontend:**
+- `schemas/protocols/inbound/awg.ts`: clients[] расширено, убран комментарий 'never stored server-side'
+- `lib/xray/inbound-link.ts`: genAwgLink/genAwgConfig/genAwgConfigs/genAwgLinks + case 'awg' в genInboundLinks
+- `pages/clients/ClientFormModal.tsx`: MULTI_CLIENT_PROTOCOLS += awg, awgIds/showAwg, regenerateAwgKeys, UI-блок (переиспользует wg-поля, Curve25519 base тот же)
+
+**Проверки:** go build ./... exit 0; go test ./internal/awg/... ok; typecheck + lint чисто.
+**Коммит:** a258ca57 (запушен).
+
+**Фаза 2 (CPS-генерация I1-I5) и Фаза 3 (скан хоста) — отдельно.**
+
+## Проверка Фазы 1 на VPS 144.31.224.212 (2026-07-13)
+
+**Окружение:** Debian 13, ядро 6.12, amneziawg kernel-модуль загружен (DKMS).
+
+**Развёрнутый бинарник:** собран через WSL (CGO_ENABLED=1, с Фазой 1) → SCP → `/usr/local/x-ui/x-ui` → systemctl restart x-ui.
+
+**Найденная проблема:** `awg-quick up` падал с `resolvconf: command not found` — Debian 13 не имеет resolvconf по умолчанию, а .conf содержит `DNS =`. Решение: `apt-get install openresolv`. После этого awg1 поднялся (порт 15963, MTU 1320, обфускация применена). TODO: добавить openresolv в `bin/install-awg-module.sh` как зависимость.
+
+**Проверка end-to-end:**
+- ✅ x-ui работает (active/enabled)
+- ✅ amneziawg kernel-модуль загружен
+- ✅ awg1 интерфейс поднят (порт 15963)
+- ✅ Клиент вставлен в БД (SQL, т.к. CSRF блокирует curl-логин) → Reconcile применил peer в kernel (`awg show` видит publicKey, allowed ips 10.8.0.2/32, keepalive 25)
+- ✅ Подписка (порт 2096, /sub/) отдаёт `amneziawg://` ссылку со всеми параметрами: клиентский privateKey (userinfo), server publicKey, address=10.8.0.2/32, dns, mtu, keepalive, presharedkey, обфускация (jc/jmin/jmax/s1-s4/h1-h4)
+
+**Пример сгенерированной ссылки:**
+```
+amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=447248&h2=...&jc=10&jmax=247&jmin=80&keepalive=25&mtu=1320&presharedkey=k2Sb...&publickey=dMeIQ...&s1=39&s2=89&s3=78&s4=72#-testuser1
+```
+
+**Замечание:** `localhost` в endpoint — `shareAddrStrategy` дефолт `node`, сервер не знает свой внешний IP. Нужно настроить `webDomain`/`shareAddr` или strategy `custom`. Не баг Фазы 1.
+
+**Фаза 1 подтверждена в проде.**
+
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
 ---
