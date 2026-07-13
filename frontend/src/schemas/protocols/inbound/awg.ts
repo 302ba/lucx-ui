@@ -4,8 +4,9 @@ import { z } from 'zod';
 // internal/awg, not Xray, so it has no stream settings. The settings blob
 // stores the server's Curve25519 private key, obfuscation parameters
 // (Jc/Jmin/Jmax, S1-S4, H1-H4, CPS I1-I5), and a `clients` array where each
-// entry is a peer: `id` = client public key, `password` = PresharedKey.
-// The client's own private key is never stored server-side.
+// entry is a peer. The client's own Curve25519 keypair, PSK, and tunnel
+// address are stored server-side (mirroring WireGuard) so a full client
+// .conf and amneziawg:// share-link can be rendered.
 export const AwgInboundSettingsSchema = z.object({
   privateKey: z.string().default(''),
   publicKey: z.string().default(''),
@@ -33,14 +34,23 @@ export const AwgInboundSettingsSchema = z.object({
   i3: z.string().optional(),
   i4: z.string().optional(),
   i5: z.string().optional(),
-  // Peers: each client is a WireGuard peer. id = public key, password = PSK.
+  // Peers: each client is a WireGuard peer. The client's keypair, PSK, and
+  // tunnel address are stored so a full client .conf and share-link can be
+  // rendered (mirroring WireGuard). Legacy inbounds stored id/password; the
+  // backend maps these to publicKey/preSharedKey.
   clients: z
     .array(
       z.object({
-        id: z.string(),
-        password: z.string(),
+        publicKey: z.string().default(''),
+        privateKey: z.string().optional(),
+        preSharedKey: z.string().optional(),
+        allowedIPs: z.array(z.string()).default([]),
+        keepAlive: z.number().int().min(0).optional(),
         email: z.string(),
         enable: z.boolean().default(true),
+        // Legacy fields (old inbounds): id = public key, password = PSK.
+        id: z.string().optional(),
+        password: z.string().optional(),
       }),
     )
     .default([]),

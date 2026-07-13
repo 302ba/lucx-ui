@@ -465,7 +465,7 @@ func (s *SubService) getInboundsBySubId(subId string) ([]*model.Inbound, error) 
 		JOIN client_inbounds ON client_inbounds.inbound_id = inbounds.id
 		JOIN clients ON clients.id = client_inbounds.client_id
 		WHERE
-			inbounds.protocol in ('vmess','vless','trojan','shadowsocks','hysteria','wireguard','mtproto')
+			inbounds.protocol in ('vmess','vless','trojan','shadowsocks','hysteria','wireguard','mtproto','awg')
 			AND clients.sub_id = ? AND inbounds.enable = ?
 	)`, subId, true).Order("sub_sort_index ASC").Order("id ASC").Find(&inbounds).Error
 	if err != nil {
@@ -616,6 +616,8 @@ func (s *SubService) GetLink(inbound *model.Inbound, email string) string {
 		return s.genMtprotoLink(inbound, email)
 	case "wireguard":
 		return s.genWireguardLink(inbound, email)
+	case "awg": // LUCX-HOOK: AWG share link
+		return s.genAwgLink(inbound, email)
 	}
 	return ""
 }
@@ -661,6 +663,84 @@ func (s *SubService) genWireguardLink(inbound *model.Inbound, email string) stri
 	}
 	return buildLinkWithParams(link, params, s.genRemark(inbound, email, "", ""))
 }
+
+// genAwgLink builds a per-client amneziawg:// share link mirroring the
+// WireGuard link shape, with the AWG obfuscation parameters (Jc/Jmin/Jmax,
+// S1-S4, H1-H4, I1-I5) carried as query params. The client's private key is
+// the userinfo, the server public key (derived from the inbound privateKey)
+// and the client's tunnel address ride in the query. Returns "" when the
+// client has no stored private key.
+//
+// LUCX-HOOK: AWG share link.
+func (s *SubService) genAwgLink(inbound *model.Inbound, email string) string {
+	if inbound.Protocol != model.AWG {
+		return ""
+	}
+	settings := s.linkSettings(inbound)
+	privateKey, _ := settings["privateKey"].(string)
+
+	resolved, ok := s.clientForLink(inbound, email)
+	if !ok || resolved.PrivateKey == "" {
+		return ""
+	}
+	client := &resolved
+
+	link := fmt.Sprintf("amneziawg://%s@%s", encodeUserinfo(client.PrivateKey), joinHostPort(s.resolveInboundAddress(inbound), inbound.Port))
+	params := make(map[string]string)
+	if privateKey != "" {
+		if pub, err := wgutil.PublicKeyFromPrivate(privateKey); err == nil {
+			params["publickey"] = pub
+		}
+	}
+	if len(client.AllowedIPs) > 0 && client.AllowedIPs[0] != "" {
+		params["address"] = client.AllowedIPs[0]
+	}
+	if mtu, ok := settings["mtu"].(float64); ok && mtu > 0 {
+		params["mtu"] = strconv.Itoa(int(mtu))
+	}
+	if dns, ok := settings["dns"].(string); ok && dns != "" {
+		params["dns"] = dns
+	}
+	if client.PreSharedKey != "" {
+		params["presharedkey"] = client.PreSharedKey
+	}
+	if client.KeepAlive > 0 {
+		params["keepalive"] = strconv.Itoa(client.KeepAlive)
+	}
+	// Obfuscation parameters (AWG-specific; absent on plain WireGuard).
+	if v, ok := settings["jc"].(float64); ok {
+		params["jc"] = strconv.Itoa(int(v))
+	}
+	if v, ok := settings["jmin"].(float64); ok {
+		params["jmin"] = strconv.Itoa(int(v))
+	}
+	if v, ok := settings["jmax"].(float64); ok {
+		params["jmax"] = strconv.Itoa(int(v))
+	}
+	for _, p := range []struct{ key, jk string }{
+		{"s1", "s1"}, {"s2", "s2"}, {"s3", "s3"}, {"s4", "s4"},
+	} {
+		if v, ok := settings[p.jk].(float64); ok {
+			params[p.key] = strconv.Itoa(int(v))
+		}
+	}
+	for _, p := range []struct{ key, jk string }{
+		{"h1", "h1"}, {"h2", "h2"}, {"h3", "h3"}, {"h4", "h4"},
+	} {
+		if v, ok := settings[p.jk].(string); ok && v != "" {
+			params[p.key] = v
+		}
+	}
+	for _, p := range []struct{ key, jk string }{
+		{"i1", "i1"}, {"i2", "i2"}, {"i3", "i3"}, {"i4", "i4"}, {"i5", "i5"},
+	} {
+		if v, ok := settings[p.jk].(string); ok && v != "" {
+			params[p.key] = v
+		}
+	}
+	return buildLinkWithParams(link, params, s.genRemark(inbound, email, "", ""))
+}
+// END LUCX-HOOK
 
 // genMtprotoLink builds a per-client Telegram proxy deep link for an mtproto
 // inbound: the server/port pair plus the client's own FakeTLS secret. The link

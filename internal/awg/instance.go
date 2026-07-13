@@ -55,10 +55,11 @@ type Instance struct {
 
 // PeerSpec is one desired peer on an AWG interface.
 type PeerSpec struct {
-	PublicKey  string // client Curve25519 public key (stored as Client.ID)
-	PSK        string // PresharedKey (stored as Client.Password)
+	PrivateKey string // client Curve25519 private key (stored so we can render a full client .conf/share-link, mirroring WireGuard)
+	PublicKey  string // client Curve25519 public key (stored as Client.ID / clients[].publicKey)
+	PSK        string // PresharedKey (stored as Client.Password / clients[].preSharedKey)
 	Keepalive  int    // PersistentKeepalive, 0 = off
-	AllowedIPs string // comma-separated CIDRs; default "0.0.0.0/0, ::/0"
+	AllowedIPs string // client tunnel address, e.g. "10.0.0.2/32"; falls back to "0.0.0.0/0, ::/0" only when unset
 }
 
 func (inst Instance) bindTo() string {
@@ -98,7 +99,7 @@ func (inst Instance) fingerprint() string {
 		inst.OutboundTag,
 	}
 	for _, p := range inst.Peers {
-		parts = append(parts, p.PublicKey, p.PSK, strconv.Itoa(p.Keepalive), p.AllowedIPs)
+		parts = append(parts, p.PrivateKey, p.PublicKey, p.PSK, strconv.Itoa(p.Keepalive), p.AllowedIPs)
 	}
 	return strings.Join(parts, "|")
 }
@@ -133,9 +134,19 @@ func InstanceFromInbound(ib *model.Inbound) (Instance, bool) {
 		RouteThroughXray bool   `json:"routeThroughXray"`
 		OutboundTag      string `json:"outboundTag"`
 		Clients          []struct {
+			// New canonical fields (mirror WireGuard clients).
+			PublicKey   string   `json:"publicKey"`
+			PrivateKey  string   `json:"privateKey"`
+			PreSharedKey string  `json:"preSharedKey"`
+			AllowedIPs  []string `json:"allowedIPs"`
+			KeepAlive   int      `json:"keepAlive"`
+			// Legacy fields kept for backward compat (old inbounds created
+			// before this change store id=publicKey, password=PSK). The JSON
+			// tag `enable` defaults to false when absent — but the panel
+			// always writes it, so absent-false only happens on malformed data.
 			ID       string `json:"id"`
 			Password string `json:"password"`
-			Enable   bool   `json:"enable"`
+			Enable   *bool  `json:"enable"`
 		} `json:"clients"`
 	}
 	if err := json.Unmarshal([]byte(ib.Settings), &s); err != nil {
@@ -173,14 +184,36 @@ func InstanceFromInbound(ib *model.Inbound) (Instance, bool) {
 		OutboundTag:      s.OutboundTag,
 	}
 	for _, c := range s.Clients {
-		if c.ID == "" || c.Password == "" || !c.Enable {
+		// Skip disabled clients. enable is a pointer so we can distinguish
+		// absent (treat as enabled, for legacy inbounds) from explicit false.
+		if c.Enable != nil && !*c.Enable {
 			continue
 		}
+		pub := c.PublicKey
+		psk := c.PreSharedKey
+		if pub == "" {
+			pub = c.ID // legacy field
+		}
+		if psk == "" {
+			psk = c.Password // legacy field
+		}
+		if pub == "" {
+			continue
+		}
+		allowed := "0.0.0.0/0, ::/0"
+		if len(c.AllowedIPs) > 0 && c.AllowedIPs[0] != "" {
+			allowed = strings.Join(c.AllowedIPs, ", ")
+		}
+		keep := c.KeepAlive
+		if keep == 0 {
+			keep = 25
+		}
 		inst.Peers = append(inst.Peers, PeerSpec{
-			PublicKey:  c.ID,
-			PSK:        c.Password,
-			Keepalive:  25,
-			AllowedIPs: "0.0.0.0/0, ::/0",
+			PrivateKey: c.PrivateKey,
+			PublicKey:  pub,
+			PSK:        psk,
+			Keepalive:  keep,
+			AllowedIPs: allowed,
 		})
 	}
 	return inst, true

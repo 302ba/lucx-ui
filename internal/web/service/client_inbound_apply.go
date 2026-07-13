@@ -362,6 +362,14 @@ func (s *ClientService) addInboundClient(inboundSvc *InboundService, data *model
 			return false, dErr
 		}
 	}
+	// LUCX-HOOK: AWG — generate blank Curve25519 keypair/PSK and allocate a
+	// unique tunnel address for newly added AWG clients, mirroring WireGuard.
+	if oldInbound.Protocol == model.AWG {
+		if dErr := defaultAwgClients(existingClients, clients, interfaceClients); dErr != nil {
+			return false, dErr
+		}
+	}
+	// END LUCX-HOOK
 
 	for _, client := range clients {
 		if strings.TrimSpace(client.Email) == "" {
@@ -384,6 +392,11 @@ func (s *ClientService) addInboundClient(inboundSvc *InboundService, data *model
 			if client.PublicKey == "" {
 				return false, common.NewError("wireguard client requires a key")
 			}
+		case "awg": // LUCX-HOOK: AWG
+			if client.PublicKey == "" {
+				return false, common.NewError("awg client requires a key")
+			}
+		// END LUCX-HOOK
 		case "mtproto":
 			if client.Secret == "" {
 				return false, common.NewError("mtproto client requires a secret")
@@ -558,6 +571,8 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 		newClientId = clients[0].Auth
 	case "wireguard":
 		newClientId = clients[0].Email
+	case "awg": // LUCX-HOOK: AWG
+		newClientId = clients[0].Email
 	case "mtproto":
 		newClientId = clients[0].Email
 	default:
@@ -637,6 +652,46 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 			clients[0].KeepAlive = old.KeepAlive
 		}
 	}
+	// LUCX-HOOK: AWG — carry stored credentials forward on edit (mirror WireGuard).
+	if oldInbound.Protocol == model.AWG && clientIndex >= 0 && clientIndex < len(oldClients) {
+		old := oldClients[clientIndex]
+		if clients[0].PrivateKey == "" {
+			clients[0].PrivateKey = old.PrivateKey
+		}
+		if clients[0].PublicKey == "" {
+			clients[0].PublicKey = old.PublicKey
+		}
+		if len(clients[0].AllowedIPs) == 0 {
+			clients[0].AllowedIPs = old.AllowedIPs
+		} else {
+			normalized, nErr := normalizeWireguardAllowedIPs(clients[0].AllowedIPs)
+			if nErr != nil {
+				return false, nErr
+			}
+			if len(normalized) == 0 {
+				clients[0].AllowedIPs = old.AllowedIPs
+			} else {
+				peers := make([]string, 0, len(oldClients))
+				for i := range oldClients {
+					if i == clientIndex {
+						continue
+					}
+					peers = append(peers, oldClients[i].AllowedIPs...)
+				}
+				if hit := wireguardAllowedIPsCollision(normalized, peers); hit != "" {
+					return false, common.NewError("awg: allowedIPs entry already used by another client:", hit)
+				}
+				clients[0].AllowedIPs = normalized
+			}
+		}
+		if clients[0].PreSharedKey == "" {
+			clients[0].PreSharedKey = old.PreSharedKey
+		}
+		if clients[0].KeepAlive == 0 {
+			clients[0].KeepAlive = old.KeepAlive
+		}
+	}
+	// END LUCX-HOOK
 
 	var oldSettings map[string]any
 	err = json.Unmarshal([]byte(oldInbound.Settings), &oldSettings)
@@ -687,6 +742,19 @@ func (s *ClientService) UpdateInboundClient(inboundSvc *InboundService, data *mo
 					newMap["keepAlive"] = clients[0].KeepAlive
 				}
 			}
+			// LUCX-HOOK: AWG — persist client keypair/PSK/allowedIPs into settings (mirror WireGuard).
+			if oldInbound.Protocol == model.AWG {
+				newMap["privateKey"] = clients[0].PrivateKey
+				newMap["publicKey"] = clients[0].PublicKey
+				newMap["allowedIPs"] = clients[0].AllowedIPs
+				if clients[0].PreSharedKey != "" {
+					newMap["preSharedKey"] = clients[0].PreSharedKey
+				}
+				if clients[0].KeepAlive > 0 {
+					newMap["keepAlive"] = clients[0].KeepAlive
+				}
+			}
+			// END LUCX-HOOK
 			if oldClientMap != nil && sameClientConfigExceptUpdatedAt(oldClientMap, newMap) {
 				if v, ok2 := oldClientMap["updated_at"]; ok2 {
 					newMap["updated_at"] = v

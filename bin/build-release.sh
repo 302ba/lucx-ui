@@ -48,10 +48,17 @@ for cmd in go node npm git curl tar gcc; do
 done
 echo -e "${GREEN}Все инструменты на месте.${NC}"
 
-# Go 1.26+ нужен (go.mod требует). Проверим минимальную версию.
-GO_MAJOR=$(go version 2>/dev/null | grep -oP 'go\K[0-9]+' | head -1)
-if [[ -z "$GO_MAJOR" || "$GO_MAJOR" -lt 23 ]]; then
-    echo -e "${RED}Go >= 1.23 требуется (рекомендуется 1.26+). Текущая: $(go version 2>&1)${NC}"
+# Go 1.23+ нужен (go.mod требует). Проверим минимальную версию.
+# `go version` выдаёт "go1.26.5 linux/amd64" — парсим major.minor.
+GO_VERSION=$(go version 2>/dev/null | grep -oP 'go\K[0-9]+\.[0-9]+' | head -1)
+GO_MAJOR=$(echo "$GO_VERSION" | cut -d. -f1)
+GO_MINOR=$(echo "$GO_VERSION" | cut -d. -f2)
+if [[ -z "$GO_MAJOR" || -z "$GO_MINOR" ]]; then
+    echo -e "${RED}Не удалось определить версию Go: $(go version 2>&1)${NC}"
+    exit 1
+fi
+if [[ "$GO_MAJOR" -lt 1 || "$GO_MINOR" -lt 23 ]]; then
+    echo -e "${RED}Go >= 1.23 требуется (рекомендуется 1.26+). Текущая: go${GO_VERSION}${NC}"
     exit 1
 fi
 

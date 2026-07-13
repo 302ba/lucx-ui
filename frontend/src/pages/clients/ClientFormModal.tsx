@@ -39,7 +39,7 @@ const FLOW_OPTIONS = Object.values(TLS_FLOW_CONTROL);
 const VMESS_SECURITY_OPTIONS = ['auto', 'aes-128-gcm', 'chacha20-poly1305'] as const;
 
 const MULTI_CLIENT_PROTOCOLS = new Set([
-  'shadowsocks', 'vless', 'vmess', 'trojan', 'hysteria', 'wireguard', 'mtproto',
+  'shadowsocks', 'vless', 'vmess', 'trojan', 'hysteria', 'wireguard', 'mtproto', 'awg', // LUCX-HOOK: AWG
 ]);
 
 const CLIENT_FORM_MODAL_Z_INDEX = 1000;
@@ -305,6 +305,16 @@ export default function ClientFormModal({
     return ids;
   }, [inbounds]);
 
+  // LUCX-HOOK: AWG — which inbound ids are AWG (so we can show AWG key fields).
+  const awgIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const row of inbounds || []) {
+      if (row && row.protocol === 'awg') ids.add(row.id);
+    }
+    return ids;
+  }, [inbounds]);
+  // END LUCX-HOOK
+
   const mtprotoDomain = useMemo(() => {
     for (const id of inboundIds || []) {
       const ib = (inbounds || []).find((row) => row.id === id);
@@ -353,11 +363,26 @@ export default function ClientFormModal({
     [inboundIds, mtprotoIds],
   );
 
+  // LUCX-HOOK: AWG — show AWG key fields when at least one selected inbound is AWG.
+  const showAwg = useMemo(
+    () => (inboundIds || []).some((id) => awgIds.has(id)),
+    [inboundIds, awgIds],
+  );
+  // END LUCX-HOOK
+
   function regenerateWireguardKeys() {
     const kp = Wireguard.generateKeypair();
     methods.setValue('wgPrivateKey', kp.privateKey);
     methods.setValue('wgPublicKey', kp.publicKey);
   }
+
+  // LUCX-HOOK: AWG — regenerate client Curve25519 keypair (AWG uses the same base keypair as WireGuard).
+  function regenerateAwgKeys() {
+    const kp = Wireguard.generateKeypair();
+    methods.setValue('wgPrivateKey', kp.privateKey);
+    methods.setValue('wgPublicKey', kp.publicKey);
+  }
+  // END LUCX-HOOK
 
   function regenerateMtprotoSecret() {
     methods.setValue('secret', generateMtprotoSecret(mtprotoDomain));
@@ -513,7 +538,7 @@ export default function ClientFormModal({
       clientPayload.reverse = { tag: reverseTagValue };
     }
 
-    if (showWireguard) {
+    if (showWireguard || showAwg) { // LUCX-HOOK: AWG reuses the WireGuard client payload (same Curve25519 keypair/PSK/allowedIPs fields)
       clientPayload.privateKey = values.wgPrivateKey;
       clientPayload.publicKey = values.wgPublicKey;
       if (values.wgPreSharedKey) {
@@ -526,7 +551,7 @@ export default function ClientFormModal({
       if (allowedIPs.length > 0) {
         clientPayload.allowedIPs = allowedIPs;
       }
-    }
+    } // END LUCX-HOOK
 
     if (showMtproto) {
       const adTag = values.adTag.trim();
@@ -831,7 +856,7 @@ export default function ClientFormModal({
                           />
                         </FormField>
                       )}
-                      {showWireguard && (
+                      {(showWireguard || showAwg) && (
                         <>
                           <Form.Item label={t('pages.clients.wireguardPrivateKey')}>
                             <Space.Compact style={{ display: 'flex' }}>
@@ -844,7 +869,7 @@ export default function ClientFormModal({
                                   methods.setValue('wgPublicKey', priv ? Wireguard.generateKeypair(priv).publicKey : '');
                                 }}
                               />
-                              <Button aria-label={t('regenerate')} icon={<ReloadOutlined />} onClick={regenerateWireguardKeys} />
+                              <Button aria-label={t('regenerate')} icon={<ReloadOutlined />} onClick={showAwg ? regenerateAwgKeys : regenerateWireguardKeys} />
                             </Space.Compact>
                           </Form.Item>
                           <FormField name="wgPublicKey" label={t('pages.clients.wireguardPublicKey')}>
@@ -858,7 +883,7 @@ export default function ClientFormModal({
                             label={t('pages.clients.wireguardAllowedIPs')}
                             extra={t('pages.clients.wireguardAllowedIPsHint')}
                           >
-                            <Input placeholder="10.0.0.2/32" />
+                            <Input placeholder={showAwg ? '10.8.0.2/32' : '10.0.0.2/32'} />
                           </FormField>
                         </>
                       )}

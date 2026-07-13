@@ -7,6 +7,7 @@ import type {
   WireguardInboundPeer,
   WireguardInboundSettings,
 } from '@/schemas/protocols/inbound/wireguard';
+import type { AwgInboundSettings } from '@/schemas/protocols/inbound/awg'; // LUCX-HOOK: AWG
 import type { ExternalProxyEntry } from '@/schemas/protocols/stream/external-proxy';
 import type { FinalMaskStreamSettings } from '@/schemas/protocols/stream/finalmask';
 import type { XHttpStreamSettings } from '@/schemas/protocols/stream/xhttp';
@@ -1226,6 +1227,11 @@ export function genInboundLinks(input: GenInboundLinksInput): string {
   if (inbound.protocol === 'wireguard') {
     return genWireguardConfigs({ inbound, remark, hostOverride, fallbackHostname });
   }
+  // LUCX-HOOK: AWG — render per-client .conf blocks (same path as WireGuard).
+  if (inbound.protocol === 'awg') {
+    return genAwgConfigs({ inbound, remark, hostOverride, fallbackHostname });
+  }
+  // END LUCX-HOOK
   return '';
 }
 
@@ -1296,6 +1302,158 @@ function wgPeerCommentSuffix(peer: unknown): string {
   const comment = (peer as { comment?: unknown })?.comment;
   return typeof comment === 'string' && comment.trim() !== '' ? ` (${comment.trim()})` : '';
 }
+
+// LUCX-HOOK: AWG share-link + .conf generators (mirror WireGuard with AWG obfuscation params).
+export interface GenAwgLinkInput {
+  settings: AwgInboundSettings;
+  address: string;
+  port: number;
+  remark?: string;
+  peerIndex: number;
+}
+
+// awgPeerShape projects an AWG client (new publicKey/privateKey/preSharedKey/
+// allowedIPs/keepAlive fields, or legacy id/password) to the peer shape the
+// link/config generators consume — same fields as WireguardInboundPeer.
+function awgPeerShape(c: AwgInboundSettings['clients'][number]): WireguardInboundPeer {
+  return {
+    privateKey: c.privateKey ?? '',
+    publicKey: c.publicKey || (c.id ?? ''),
+    preSharedKey: c.preSharedKey ?? (c.password ?? ''),
+    allowedIPs: c.allowedIPs ?? [],
+    keepAlive: c.keepAlive ?? 0,
+    comment: '',
+  } as WireguardInboundPeer;
+}
+
+export function genAwgLink(input: GenAwgLinkInput): string {
+  const { settings, address, port, remark = '', peerIndex } = input;
+  const peer = awgPeerShape(settings.clients[peerIndex]);
+  if (!peer) return '';
+
+  const url = new URL(`amneziawg://${formatUrlHost(address)}:${port}`);
+  url.username = peer.privateKey ?? '';
+
+  // Server public key is derived from the inbound privateKey (Curve25519).
+  if (settings.privateKey.length > 0) {
+    const pubKey = Wireguard.generateKeypair(settings.privateKey).publicKey;
+    if (pubKey.length > 0) url.searchParams.set('publickey', pubKey);
+  }
+  if (peer.allowedIPs.length > 0 && peer.allowedIPs[0]) {
+    url.searchParams.set('address', peer.allowedIPs[0]);
+  }
+  if (typeof settings.mtu === 'number' && settings.mtu > 0) {
+    url.searchParams.set('mtu', String(settings.mtu));
+  }
+  // AWG obfuscation params (absent on plain WireGuard).
+  if (settings.jc) url.searchParams.set('jc', String(settings.jc));
+  if (settings.jmin) url.searchParams.set('jmin', String(settings.jmin));
+  if (settings.jmax) url.searchParams.set('jmax', String(settings.jmax));
+  if (settings.s1) url.searchParams.set('s1', String(settings.s1));
+  if (settings.s2) url.searchParams.set('s2', String(settings.s2));
+  if (settings.s3) url.searchParams.set('s3', String(settings.s3));
+  if (settings.s4) url.searchParams.set('s4', String(settings.s4));
+  if (settings.h1) url.searchParams.set('h1', settings.h1);
+  if (settings.h2) url.searchParams.set('h2', settings.h2);
+  if (settings.h3) url.searchParams.set('h3', settings.h3);
+  if (settings.h4) url.searchParams.set('h4', settings.h4);
+  if (settings.i1) url.searchParams.set('i1', settings.i1);
+  if (settings.i2) url.searchParams.set('i2', settings.i2);
+  if (settings.i3) url.searchParams.set('i3', settings.i3);
+  if (settings.i4) url.searchParams.set('i4', settings.i4);
+  if (settings.i5) url.searchParams.set('i5', settings.i5);
+  if (settings.dns) url.searchParams.set('dns', settings.dns);
+  if (peer.preSharedKey) url.searchParams.set('presharedkey', peer.preSharedKey);
+  if (typeof peer.keepAlive === 'number' && peer.keepAlive > 0) {
+    url.searchParams.set('keepalive', String(peer.keepAlive));
+  }
+
+  url.hash = encodeURIComponent(remark);
+  return url.toString();
+}
+
+export function genAwgConfig(input: GenAwgLinkInput): string {
+  const { settings, address, port, remark = '', peerIndex } = input;
+  const peer = awgPeerShape(settings.clients[peerIndex]);
+  if (!peer) return '';
+
+  const pubKey = settings.privateKey.length > 0
+    ? Wireguard.generateKeypair(settings.privateKey).publicKey
+    : '';
+
+  let txt = `[Interface]\n`;
+  txt += `PrivateKey = ${peer.privateKey ?? ''}\n`;
+  txt += `Address = ${peer.allowedIPs[0] ?? ''}\n`;
+  txt += `DNS = ${settings.dns || '1.1.1.1, 1.0.0.1'}\n`;
+  if (typeof settings.mtu === 'number' && settings.mtu > 0) {
+    txt += `MTU = ${settings.mtu}\n`;
+  }
+  // AWG obfuscation params in [Interface] (amnezia fields go before [Peer]).
+  if (settings.jc) txt += `Jc = ${settings.jc}\n`;
+  if (settings.jmin) txt += `Jmin = ${settings.jmin}\n`;
+  if (settings.jmax) txt += `Jmax = ${settings.jmax}\n`;
+  if (settings.s1) txt += `S1 = ${settings.s1}\n`;
+  if (settings.s2) txt += `S2 = ${settings.s2}\n`;
+  if (settings.s3) txt += `S3 = ${settings.s3}\n`;
+  if (settings.s4) txt += `S4 = ${settings.s4}\n`;
+  if (settings.h1) txt += `H1 = ${settings.h1}\n`;
+  if (settings.h2) txt += `H2 = ${settings.h2}\n`;
+  if (settings.h3) txt += `H3 = ${settings.h3}\n`;
+  if (settings.h4) txt += `H4 = ${settings.h4}\n`;
+  if (settings.i1) txt += `I1 = <b 0x${settings.i1}>\n`;
+  if (settings.i2) txt += `I2 = <b 0x${settings.i2}>\n`;
+  if (settings.i3) txt += `I3 = <b 0x${settings.i3}>\n`;
+  if (settings.i4) txt += `I4 = <b 0x${settings.i4}>\n`;
+  if (settings.i5) txt += `I5 = <b 0x${settings.i5}>\n`;
+
+  txt += `\n# ${remark}\n`;
+  txt += `[Peer]\n`;
+  txt += `PublicKey = ${pubKey}\n`;
+  txt += `AllowedIPs = 0.0.0.0/0, ::/0\n`;
+  txt += `Endpoint = ${address}:${port}`;
+  if (peer.preSharedKey && peer.preSharedKey.length > 0) {
+    txt += `\nPresharedKey = ${peer.preSharedKey}`;
+  }
+  if (typeof peer.keepAlive === 'number' && peer.keepAlive > 0) {
+    txt += `\nPersistentKeepalive = ${peer.keepAlive}\n`;
+  }
+  return txt;
+}
+
+export function genAwgConfigs(input: GenInboundLinksInput): string {
+  const { inbound, remark = '', hostOverride = '', fallbackHostname } = input;
+  if (inbound.protocol !== 'awg') return '';
+  const addr = resolveAddr(inbound, hostOverride, fallbackHostname);
+  const sep = '-';
+  const settings = inbound.settings as AwgInboundSettings;
+  return settings.clients
+    .map((c, i) => genAwgConfig({
+      settings,
+      address: addr,
+      port: inbound.port,
+      remark: `${remark}${sep}${i + 1}${wgPeerCommentSuffix(c)}`,
+      peerIndex: i,
+    }))
+    .join('\r\n');
+}
+
+export function genAwgLinks(input: GenInboundLinksInput): string {
+  const { inbound, remark = '', hostOverride = '', fallbackHostname } = input;
+  if (inbound.protocol !== 'awg') return '';
+  const addr = resolveAddr(inbound, hostOverride, fallbackHostname);
+  const sep = '-';
+  const settings = inbound.settings as AwgInboundSettings;
+  return settings.clients
+    .map((c, i) => genAwgLink({
+      settings,
+      address: addr,
+      port: inbound.port,
+      remark: `${remark}${sep}${i + 1}${wgPeerCommentSuffix(c)}`,
+      peerIndex: i,
+    }))
+    .join('\r\n');
+}
+// END LUCX-HOOK
 
 export function isPostQuantumLink(link: string): boolean {
   if (/[?&]pqv=/.test(link)) return true;
