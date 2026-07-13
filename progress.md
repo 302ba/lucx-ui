@@ -207,6 +207,36 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 
 **Фаза 1 подтверждена в проде.**
 
+## Фаза 2: CPS-генерация I1-I5 (pumbaX) — 2026-07-13
+
+**Реализовано:**
+- `internal/awg/cps/` — порт pumbaX/awg-multi-script:
+  - `domains.go` — домен-пулы RU/WORLD (TLS/DNS/SIP/QUIC), SelectDomain
+  - `params.go` — GenerateAWGParams (Jc/Jmin/Jmax/S1-S4/H1-H4 с инвариантами AmneziaWG: Jmin<Jmax, |S1+56-S2|>=10, H1-H4 в 4 непересекающихся квадрантах 2^29)
+  - `cps.go` — GenerateCPS (TLS Chrome-like ClientHello с GREASE/SNI/groups/key_share/padding, DNS EDNS0, SIP REGISTER, QUIC v1 Initial + second/short packets)
+  - `cps_test.go` — 6 тестов (инварианты 200 итераций, все профили/регионы)
+- API: `POST /panel/api/inbounds/awg/generateObfuscation` (awg.go)
+- Frontend: awg.tsx — кнопка генерации вызывает backend API (вместо Math.random заглушки), loading state
+
+**Проверено в проде:** API вернуло `success:true` с полным набором — jc/jmin/jmax, s1-s4, h1-h4 (4 квадранта), i1-i5 (TLS ClientHello с разными SNI: reddit/cloudflare/google/github/wikipedia). ✅
+
+**Фикс:** `bin/install-awg-module.sh` — `apt-get install openresolv` (awg-quick падал с 'resolvconf: command not found' на Debian 13).
+
+## Фаза 3: Скан хоста (hoaxisr) — 2026-07-13
+
+**Реализовано:**
+- `internal/awg/signature/capture.go` — порт hoaxisr/awg-manager:
+  - `Capture(domain)` — отправляет QUIC v1 Initial (с TLS ClientHello SNI=domain) на UDP 443, читает ответы, возвращает I1-I5 как CPS строки
+  - Чистый Go: net.Dial UDP, crypto/hkdf (HKDF-SHA256, RFC 9001 §5.2), crypto/cipher (AES-128-GCM), header protection (RFC 9001 §5.4), crypto/tls через net.Pipe для ClientHello
+- API: `POST /panel/api/inbounds/awg/captureHost` (awg.go)
+- Frontend: awg.tsx — поле "сканировать хост" (Input + кнопка), вызывает API, заполняет I1-I5
+
+**Endpoint работает:** возвращает корректную ошибку "host did not reply on QUIC 443" для хостов без ответа.
+
+**⚠️ Known bug: capture не получает ответов от реальных хостов** (google/cloudflare/dns.google — все таймаутят, получают только свой собственный Initial). `buildTLSClientHello` работает корректно (1487 байт реального ClientHello через net.Pipe), но `buildInitialPacket` (QUIC Initial шифрование: HKDF/AES-GCM/header protection) генерирует невалидный пакет, который серверы отбрасывают. Требует отладки crypto-деталей (возможно: varint кодировка length, nonce XOR, header protection mask позиции, или ClientHello record-wrapping для CRYPTO frame).
+
+**Статус Фазы 3:** endpoint + frontend готовы, но capture пока нерабочий. Фаза 2 (случайная CPS-генерация) полностью покрывает практическую потребность — скан хоста опциональная фича.
+
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
 ---
