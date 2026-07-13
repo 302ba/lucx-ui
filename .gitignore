@@ -3,6 +3,11 @@
 .vscode/
 .cursor/
 .claude/*
+.claudeprompt
+.cursorrules
+.serena/
+.windsurfrules
+.zcode/
 .cache/
 .sync*
 

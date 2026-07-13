@@ -81,7 +81,7 @@ Run `grep -rn "LUCX-HOOK" internal/ frontend/ install.sh` to find all integratio
 ### 2. Isolated Modules
 
 New functionality lives ONLY in:
-- **Go:** `internal/awg/` — AWG sidecar (manager, process, instance, traffic, orphans, obfuscation: params/cps/config/types/templates/helpers)
+- **Go:** `internal/awg/` — AWG sidecar (manager, process, instance, traffic, orphans)
 - **Go:** `internal/lucx/` — subdirectories: `parser/`, `nodetype/`, `outbound_link/` (Smart Cluster)
 - **Go:** `internal/database/migrate_awg.go` — legacy DB migration
 - **Frontend:** `frontend/src/schemas/protocols/inbound/awg.ts` — Zod schema
@@ -154,19 +154,14 @@ Original 3x-ui code remains under GPL-3.0.
 
 ```
 internal/awg/                      AWG sidecar (mirrors internal/mtproto/)
-├── manager.go                     Manager singleton: Ensure/Reconcile/StopAll/CollectTraffic/SyncPeers
-├── process.go                     Process wrapping awg-quick up/down + procLogWriter
-├── instance.go                    Instance + InstanceFromInbound + fingerprint
-├── traffic.go                     scrapeTransfer via `awg show transfer`
+├── manager.go                     Manager singleton: Ensure/Reconcile/StopAll/CollectTraffic/SyncPeers + renderServerConf/writeServerConfigFile
+├── process.go                     Process wrapping awg-quick up/down + procLogWriter + awgConfigDir + awgQuick
+├── instance.go                    Instance + InstanceFromInbound + fingerprint + PeerSpec
+├── traffic.go                     scrapeTransfer via `awg show transfer` + Traffic type
 ├── orphans_linux.go               killStrayAwgInterfaces
 ├── orphans_other.go               no-op off Linux
-├── params.go                      GenerateAWGParams (obfuscation + Curve25519 keys)
-├── cps.go                         GenerateCPS (I1-I5 connection proxy signatures)
-├── config.go                      BuildServerConfig / BuildClientConfig
-├── types.go                       AWGConfig / AWGClient / PeerSpec / etc.
-├── templates.go                   PostUp/PostDown template rendering
-├── helpers.go                     settings parsing + awgQuick helper
-├── *_test.go                      instance/manager/config/cps/params/templates tests
+├── instance_test.go               Instance/fingerprint/render tests
+└── manager_test.go                Manager state-machine tests
 
 internal/lucx/                     Smart Cluster
 ├── parser/                        SSH output → NodeCreds
@@ -236,11 +231,9 @@ go build -o /tmp/x-ui .
 
 ## Known Issues
 
-### 1. AWG sidecar раздут относительно mtproto (эталона)
+### 1. ~~AWG sidecar раздут относительно mtproto (эталона)~~ — ЗАКРЫТО
 
-mtproto (эталон) — 9 файлов в `internal/mtproto/`. AWG — 19 файлов в `internal/awg/`. Лишние 7 файлов (`params.go`, `cps.go`, `templates.go`, `config.go`, `types.go`, `helpers.go`, `traffic.go`) — генерация конфига и обфускация, которой у mtproto нет (mtg — готовый бинарщик с конфиг-файлом, а мы генерируем AWG-конфиг в Go). При этом integration-точек в upstream у AWG меньше (4 vs 17 у mtproto) — парадокс: больше файлов сайдкара, меньше вторжения в upstream.
-
-**Решение (2026-07-13):** оставить как есть, добить миграцию на v3.5.0. Рефактор архитектуры (срез к 9 файлам mtproto через вынос генерации конфига в шелл-обёртку) отложен отдельной задачей. Это_known debt: каждое обновление upstream = ручной перенос 29 файлов вместо ~10.
+**Решено (2026-07-13):** рефактор удалением мёртвого кода. Файлы `params.go`, `cps.go`, `config.go`, `templates.go`, `types.go`, `helpers.go` + 5 тестов были полностью мёртвым кодом — их функции (`GenerateAWGParams`, `GenerateCPS`, `BuildServerConfig`, `RenderPostUp` и др.) вызывались только тестами, ни один живой call site их не использовал. Генерация ключей/обфускации делается во frontend (`createDefaultAwgInboundSettings`). AWG сокращён с 19 до 8 файлов (6 .go + 2 теста) — почти симметрично mtproto (9 файлов). Обновления upstream теперь требуют переноса ~20 файлов вместо 29.
 
 ### 2. Сайдкар не проверен в реальном runtime на VPS
 

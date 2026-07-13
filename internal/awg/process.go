@@ -10,11 +10,22 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 	"sync"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
 )
+
+// awgConfigDir is the conventional AWG tools config directory, matching the
+// path used by the amneziawg-tools package on the server.
+const awgConfigDir = "/etc/amnezia/amneziawg"
+
+// awgQuick wraps an `awg-quick <verb> <confPath>` invocation, returning the
+// combined stdout+stderr output.
+func awgQuick(verb, confPath string) ([]byte, error) {
+	return exec.Command("awg-quick", verb, confPath).CombinedOutput()
+}
 
 // configPathForID returns the .conf path for an inbound. Mirrors the mtproto
 // sidecar's configPathForID but under the AWG tools' conventional path.

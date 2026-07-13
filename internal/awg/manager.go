@@ -245,9 +245,9 @@ func writeServerConfigFile(inst Instance) error {
 	return os.WriteFile(configPathForID(inst.Id), []byte(conf), 0o600)
 }
 
-// renderServerConf builds the awg-quick .conf for an instance. The layout
-// matches BuildServerConfig but reads from the Instance struct (desired
-// runtime state) rather than the inbound's stored JSON.
+// renderServerConf builds the awg-quick .conf for an instance, reading from
+// the Instance struct (desired runtime state) rather than the inbound's
+// stored JSON.
 func renderServerConf(inst Instance) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "[Interface]\n")

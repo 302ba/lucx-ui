@@ -102,6 +102,29 @@
 
 **Решение пользователя:** оставить как есть, добить миграцию. Рефактор архитектуры отложен.
 
+## Рефактор AWG — удаление мёртвого кода (2026-07-13)
+
+**Исследование подтвердило:** 6 файлов AWG (`params.go`, `cps.go`, `config.go`, `templates.go`, `types.go`, `helpers.go`) + 5 тестов — полностью мёртвый код. Их функции (`GenerateAWGParams`, `GenerateCPS`, `BuildServerConfig`, `BuildClientConfig`, `UpdateServerConfig`, `RenderPostUp`, `RenderPostDown`, `MergeParamsToSettings`, `ValidateAWGParams`, `GenKey`, `GenPSK`, `DerivePubkey`) вызывались ТОЛЬКО тестами. Ни один живой call site (manager/process/instance/traffic/orphans/job/runtime/web/frontend) их не использовал.
+
+Генерация ключей и обфускации делается во frontend (`createDefaultAwgInboundSettings` в `inbound-defaults.ts` — `Wireguard.generateKeypair` + `Math.random`). Go-генераторы были дубликатом. Комментарий во frontend «backend regenerates obfuscation when obfLevel/profile change» — ложный, такой логики в Go нет.
+
+**Выполнено:**
+- Перенесено в `process.go`: `awgConfigDir` (const) + `awgQuick` (func) + `"os/exec"` импорт
+- Удалено 6 .go: params/cps/config/templates/types/helpers
+- Удалено 5 тестов: config_test, config_roundtrip_test, cps_test, params_test, templates_test
+- Поправлен комментарий manager.go (упоминание BuildServerConfig)
+- Обновлён AGENTS.md (Architecture Map, Known Issue #1 → ЗАКРЫТО)
+
+**Результат:** 19 файлов → 8 файлов (6 .go + 2 теста). Почти симметрично mtproto (9 файлов).
+
+**Проверки:**
+- `go build ./internal/awg/...` → exit 0 ✅
+- `go test ./internal/awg/...` → ok 0.903s, все 11 тестов PASS ✅
+- `go build -o /tmp/x-ui .` → exit 0 ✅
+- LUCX-HOOK count → 48 (не изменилось) ✅
+
+**Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
+
 ---
 
 ## Заметки
