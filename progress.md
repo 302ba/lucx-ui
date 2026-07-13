@@ -123,6 +123,14 @@
 - `go build -o /tmp/x-ui .` → exit 0 ✅
 - LUCX-HOOK count → 48 (не изменилось) ✅
 
+## Dependabot — ужесточение (2026-07-13)
+
+**Решение пользователя:** security + урезанный scope.
+
+**Выполнено:** `.github/dependabot.yml` — секция `updates: []` (version updates отключены). Security updates (CVE) остаются через GitHub Settings. Режим: PR только при найденной уязвимости, без еженедельного шума минорных версий npm/gomod/github-actions. Шаблон для возврата version updates оставлен в комментарии в yml-файле.
+
+AGENTS.md Known Issue #3 обновлён.
+
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
 ---

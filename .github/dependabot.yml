@@ -1,19 +1,31 @@
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
+# Dependabot configuration.
+#
+# Version updates (еженедельные PR на новые версии) ОТКЛЮЧЕНЫ — секция
+# `updates:` пуста намеренно. Это убирает шум из минорных обновлений
+# npm/gomod/github-actions, которые накапливались как незакрытые PR.
+#
+# Security updates (PR при найденной уязвимости/CVE) остаются включёнными —
+# они управляются через GitHub Settings → Security & analysis → Dependabot
+# security updates, а не этим файлом. Dependabot автоматически создаст PR
+# для любой зависимости с известной CVE в gomod, npm или github-actions.
+#
+# Чтобы снова включить version updates, замените `updates: []` на:
+#   updates:
+#     - package-ecosystem: "gomod"
+#       directory: "/"
+#       schedule:
+#         interval: "weekly"
+#     - package-ecosystem: "npm"
+#       directory: "/frontend"
+#       schedule:
+#         interval: "weekly"
+#     - package-ecosystem: "github-actions"
+#       directory: "/"
+#       schedule:
+#         interval: "weekly"
+#
+# Документация:
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
-updates:
-  - package-ecosystem: "github-actions" # See documentation for possible values
-    directory: "/" # Location of package manifests
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "gomod"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "npm"
-    directory: "/frontend"
-    schedule:
-      interval: "weekly"
+updates: []

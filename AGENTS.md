@@ -239,9 +239,9 @@ go build -o /tmp/x-ui .
 
 Unit-тесты AWG проходят (`go test ./internal/awg/... → ok`). Но реальный запуск kernel-интерфейса `awg-quick` + Xray TUN-inbound на `vps_finland_lucx` не подтверждён в этой сессии. Проверка отложена до завершения миграции на v3.5.0.
 
-### 3. Dependabot отключён (временно)
+### 3. Dependabot — только security updates
 
-10 dependabot PR были закрыты при очистке перед миграцией на v3.5.0. После стабилизации миграции — решить: включить обратно или управлять зависимостями вручную.
+Version updates (еженедельные PR на новые версии) отключены — `updates: []` в `.github/dependabot.yml`. Это убирает шум минорных обновлений npm/gomod/github-actions, которые накапливались как незакрытые PR (10 шт. были закрыты перед миграцией на v3.5.0). Security updates (CVE) остаются включёнными через GitHub Settings → Dependabot security updates — Dependabot автоматически создаст PR при найденной уязвимости в любой зависимости. Чтобы вернуть version updates — замените `updates: []` на полный список (шаблон в комментарии в yml-файле).
 
 ---
 
