@@ -1658,6 +1658,19 @@ install_x-ui() {
     # works out of the box (no-op when XUI_ENABLE_FAIL2BAN=false). Never fatal.
     setup_fail2ban
 
+    # LUCX-HOOK: Install AmneziaWG kernel module + tools.
+    # The AWG sidecar (internal/awg) needs `awg-quick`, `awg`, and the
+    # amneziawg kernel module. Routing of decrypted traffic into Xray is via
+    # an injected TUN inbound (injectAwgEgress), so no tun2socks daemon is
+    # needed. Best-effort: a failure logs a warning but does not abort the
+    # panel install — AWG inbounds simply won't start until the module is
+    # available.
+    if [[ -x bin/install-awg-module.sh ]]; then
+        echo -e "${green}Installing AmneziaWG kernel module and tools...${plain}"
+        bash bin/install-awg-module.sh || echo -e "${red}AWG install failed — AWG inbounds will be unavailable until manually fixed.${plain}"
+    fi
+    # END LUCX-HOOK
+
     echo -e "${green}x-ui ${tag_version}${plain} installation finished, it is running now..."
     echo -e ""
     echo -e "┌───────────────────────────────────────────────────────┐

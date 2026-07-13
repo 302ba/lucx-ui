@@ -11,6 +11,7 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/mtproto"
 	"github.com/mhsanaei/3x-ui/v3/internal/xray"
+	"github.com/mhsanaei/3x-ui/v3/internal/awg" // LUCX-HOOK: AWG sidecar
 )
 
 type LocalDeps struct {
@@ -53,6 +54,15 @@ func (l *Local) AddInbound(_ context.Context, ib *model.Inbound) error {
 		}
 		return mtproto.GetManager().Ensure(inst)
 	}
+	// LUCX-HOOK: AWG — delegate to the kernel-interface sidecar manager.
+	if ib.Protocol == model.AWG {
+		inst, ok := awg.InstanceFromInbound(ib)
+		if !ok {
+			return nil
+		}
+		return awg.GetManager().Ensure(inst)
+	}
+	// END LUCX-HOOK
 	body, err := json.MarshalIndent(ib.GenXrayInboundConfig(), "", "  ")
 	if err != nil {
 		return err
@@ -67,6 +77,12 @@ func (l *Local) DelInbound(_ context.Context, ib *model.Inbound) error {
 		mtproto.GetManager().Remove(ib.Id)
 		return nil
 	}
+	// LUCX-HOOK: AWG — delegate removal to the sidecar manager.
+	if ib.Protocol == model.AWG {
+		awg.GetManager().Remove(ib.Id)
+		return nil
+	}
+	// END LUCX-HOOK
 	return l.withAPI(func(api *xray.XrayAPI) error {
 		return api.DelInbound(ib.Tag)
 	})
@@ -116,6 +132,12 @@ func (l *Local) AddUser(_ context.Context, ib *model.Inbound, userMap map[string
 	if ib.Protocol == model.MTProto {
 		return nil
 	}
+	// LUCX-HOOK: AWG — peer reconciliation is driven by the periodic awg job,
+	// which reads the desired peer set from the DB. No live API call here.
+	if ib.Protocol == model.AWG {
+		return nil
+	}
+	// END LUCX-HOOK
 	return l.withAPI(func(api *xray.XrayAPI) error {
 		return api.AddUser(string(ib.Protocol), ib.Tag, userMap)
 	})
@@ -125,6 +147,11 @@ func (l *Local) RemoveUser(_ context.Context, ib *model.Inbound, email string) e
 	if ib.Protocol == model.MTProto {
 		return nil
 	}
+	// LUCX-HOOK: AWG — peer removal is picked up by the next Reconcile tick.
+	if ib.Protocol == model.AWG {
+		return nil
+	}
+	// END LUCX-HOOK
 	return l.withAPI(func(api *xray.XrayAPI) error {
 		return api.RemoveUser(ib.Tag, email)
 	})

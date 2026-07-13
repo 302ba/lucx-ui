@@ -61,6 +61,7 @@ import {
   HysteriaFields,
   MixedFields,
   MtprotoFields,
+  AwgFields, // LUCX-HOOK: AWG
   ShadowsocksFields,
   TunFields,
   TunnelFields,
@@ -658,6 +659,9 @@ export default function InboundFormModal({
       {protocol === Protocols.MIXED && <MixedFields mixedUdpOn={mixedUdpOn} />}
 
       {protocol === Protocols.MTPROTO && <MtprotoFields />}
+      {/* LUCX-HOOK: AWG protocol form */}
+      {protocol === Protocols.AWG && <AwgFields />}
+      {/* END LUCX-HOOK */}
 
       {protocol === Protocols.SHADOWSOCKS && <ShadowsocksFields isSSWith2022={isSSWith2022} />}
 
