@@ -220,6 +220,50 @@ go build -o /tmp/x-ui .
 
 ---
 
+## Release & Install (форк)
+
+`install.sh` адаптирован под наш форк (`AlexeyLCP/lucx-ui`): скачивает релиз-tarball и raw-скрипты (x-ui.sh, x-ui.rc, service-юниты) из `feat/awg-sidecar-v3.5.0`. Xray-core + mtg переиспользуются из апстрим-релиза `MHSanaei/3x-ui`.
+
+### Сборка релиза (на VPS, Linux/amd64, с gcc + go + node)
+
+CGO-бинарник (mattn/go-sqlite3) нельзя cross-compile с Windows — сборка только на Linux.
+
+```bash
+# 1. Собрать tarball
+curl -fL https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/feat/awg-sidecar-v3.5.0/bin/build-release.sh | bash
+# → /tmp/x-ui-linux-amd64.tar.gz
+
+# 2. Создать GitHub-релиз (нужен gh CLI с auth)
+gh release create v3.5.0-lucx.1 /tmp/x-ui-linux-amd64.tar.gz \
+  --repo AlexeyLCP/lucx-ui \
+  --title "v3.5.0-lucx.1" \
+  --notes "LucX-UI v3.5.0 с AWG-сайдкаром"
+
+# 3. Установить панель (на этом или другом VPS)
+bash <(curl -fL https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/feat/awg-sidecar-v3.5.0/install.sh)
+# → скачает наш релиз, поставит x-ui + systemd + Xray + mtg + fail2ban + AWG-модуль
+```
+
+### Зависимости VPS для сборки
+- Go 1.23+ (рекомендуется 1.26)
+- Node.js 20+ и npm
+- gcc (для CGO)
+- git, curl, tar
+
+### Структура релиза (как у апстрима)
+```
+x-ui-linux-amd64.tar.gz → x-ui/
+  ├── x-ui                    ← наш бинарник (CGO, собран из форка)
+  ├── x-ui.sh, x-ui.rc        ← из репо
+  ├── x-ui.service.{debian,arch,rhel}  ← из репо
+  └── bin/
+      ├── xray-linux-amd64    ← из апстрим-релиза (не наш код)
+      ├── mtg-linux-amd64     ← из апстрим-релиза (не наш код)
+      └── install-awg-module.sh  ← наш DKMS-скрипт
+```
+
+---
+
 ## Commit Convention
 
 - Префиксы: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`

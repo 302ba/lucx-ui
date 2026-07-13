@@ -131,6 +131,33 @@
 
 AGENTS.md Known Issue #3 обновлён.
 
+## Адаптация install.sh + release-процесс (2026-07-13)
+
+**Цель:** `install.sh` должен ставить нашу сборку так же просто, как апстрим — через GitHub-релиз.
+
+**Выполнено:**
+- `install.sh` — 8 LUCX-HOOK замен URL (`MHSanaei/3x-ui` → `AlexeyLCP/lucx-ui`):
+  - Константы `LUCX_REPO`/`LUCX_BRANCH` вверху
+  - api.github.com/releases/latest, release tarball download, fallback URL → наш репо
+  - x-ui.sh, x-ui.rc, 3 service-юнита → raw.githubusercontent из нашей ветки
+- `bin/build-release.sh` — новый скрипт сборки релиза на VPS:
+  - Клон форка → `npm build` → `CGO_ENABLED=1 go build` (с gcc на VPS)
+  - Скачивание Xray+mtg из апстрим-релиза `MHSanaei/3x-ui` v3.5.0
+  - Упаковка `x-ui-linux-amd64.tar.gz` (структура как у апстрима)
+  - Инструкция по созданию GitHub-релиза
+- Оба скрипта проходят `bash -n`
+- Коммит `8b627f8e` запушен
+
+**Почему сборка на VPS:** CGO-бинарник (mattn/go-sqlite3) нельзя cross-compile с Windows на Linux — нужен gcc + linux-заголовки. Cross-compile `CGO_ENABLED=0` соберётся, но при запуске упадёт (sqlite stub).
+
+**Инструкция для VPS** — в AGENTS.md (секция Release & Install) и в выводе `bin/build-release.sh`.
+
+**Следующие шаги (требует VPS):**
+1. На VPS: `curl .../bin/build-release.sh | bash` → `/tmp/x-ui-linux-amd64.tar.gz`
+2. `gh release create v3.5.0-lucx.1 /tmp/x-ui-linux-amd64.tar.gz --repo AlexeyLCP/lucx-ui`
+3. `bash <(curl .../install.sh)` → установка панели с нашим кодом
+4. UI → создать AWG-inbound → `awg show` / `ip link show awg0`
+
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
 ---
