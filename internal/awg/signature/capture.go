@@ -241,9 +241,12 @@ func buildQUICInitial(host string) ([]byte, error) {
 	pnOffset := header.Len() - pnLen
 	if len(ciphertext) >= 16 {
 		mask := aesECB(clientHP, ciphertext[:16])
-		protected[pnOffset] ^= mask[0] & 0x0F
+		// Form byte (position 0) is masked on its low 4 bits (long header);
+		// the pn bytes (pnOffset..pnOffset+pnLen) are masked by mask[1..pnLen].
+		// NOTE: the form byte is the first byte of the header, NOT pnOffset.
+		protected[0] ^= mask[0] & 0x0F
 		for i := 0; i < pnLen; i++ {
-			protected[pnOffset+1+i] ^= mask[1+i]
+			protected[pnOffset+i] ^= mask[1+i]
 		}
 	}
 	return protected, nil
