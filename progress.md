@@ -270,7 +270,8 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **Релиз v3.5.0-lucx.4** (latest) — все 3 фазы работают.
 
 ## Релизы
-- v3.5.0-lucx.5 (latest) — e2e фикс: серверный Address ✅
+- v3.5.0-lucx.6 (latest) — форма: выбор профиля обфускации + TLS + регион ✅
+- v3.5.0-lucx.5 (устарел, удалён) — e2e фикс Address
 - v3.5.0-lucx.4 (устарел, удалён) — Фаза 3 header protection
 - v3.5.0-lucx.3 (устарел, удалён) — фикс onlyI1
 - v3.5.0-lucx.2 (устарел, удалён) — Фазы 1-3 (баг onlyI1)
@@ -291,6 +292,20 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 - ✅ Трафик: 124 B received, 2.01 KiB sent (растёт)
 
 **Полный цикл AWG подтверждён end-to-end:** установка → создание inbound → клиентский .conf → handshake → трафик через туннель.
+
+## Форма AWG: выбор профиля обфускации (2026-07-14, v3.5.0-lucx.6)
+
+Доработана форма создания AWG-inbound (`awg.tsx`) — ранее выбор обфускации был частичным:
+- **obfLevel**: подписи приведены к backend профилям (Lite/Standard/Pro вместо none/Jc/S/H/full+CPS) — соответствуют `cps.ObfProfile` (lite/standard/pro)
+- **mimicryProfile**: добавлен TLS (ClientHello, Chrome-like) — основной профиль для Standard/Pro по pumbaX; ранее был только quic/sip/dns
+- **region**: добавлен селект RU/World (раньше поле было в схеме, но UI-селектора не было) — соответствует `cps.Region` (ru/world)
+- Tooltip/hint для каждого селектора
+- i18n: 22 awg-ключа добавлены в `en-US.json` и `ru-RU.json` (раньше `t()` возвращал путь ключа — не было переводов)
+
+**Проверка в проде (v3.5.0-lucx.6):**
+- TLS Standard RU → jc/jmin/jmax (5/76/237) + I1 (704 байт TLS ClientHello)
+- QUIC Pro World full → все 5 пакетов I1-I5 (2402/1090/148/134/146)
+- awg1 поднят, peer, подписка работает
 
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
