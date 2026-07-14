@@ -15,7 +15,7 @@ xui_service="${XUI_SERVICE:=/etc/systemd/system}"
 # Release tarball is downloaded from this repo; raw shell scripts (x-ui.sh,
 # x-ui.rc, x-ui.service.*) from this branch.
 LUCX_REPO="AlexeyLCP/lucx-ui"
-LUCX_BRANCH="feat/awg-sidecar-v3.5.0"
+LUCX_BRANCH="main"
 # END LUCX-HOOK
 
 # check root
