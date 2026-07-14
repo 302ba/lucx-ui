@@ -129,19 +129,29 @@ export default function AwgFields() {
       >
         <Select
           options={[
-            { value: 1, label: '1 — none' },
-            { value: 2, label: '2 — Jc/S/H' },
-            { value: 3, label: '3 — full + CPS' },
+            { value: 1, label: 'Lite — лёгкая обфускация (Jc + DNS I1)' },
+            { value: 2, label: 'Standard — средняя (Jc/S/H + TLS I1)' },
+            { value: 3, label: 'Pro — полная (Jc/S/H + I1-I5)' },
           ]}
         />
       </Form.Item>
 
-      <Form.Item name={['settings', 'mimicryProfile']} label={t('pages.inbounds.form.awgMimicryProfile')}>
+      <Form.Item name={['settings', 'mimicryProfile']} label={t('pages.inbounds.form.awgMimicryProfile')} tooltip={t('pages.inbounds.form.awgMimicryProfileHint')}>
         <Select
           options={[
-            { value: 'quic', label: 'QUIC' },
-            { value: 'sip', label: 'SIP' },
-            { value: 'dns', label: 'DNS' },
+            { value: 'tls', label: 'TLS (ClientHello, Chrome-like)' },
+            { value: 'quic', label: 'QUIC (Initial packet)' },
+            { value: 'dns', label: 'DNS (EDNS0 query)' },
+            { value: 'sip', label: 'SIP (REGISTER)' },
+          ]}
+        />
+      </Form.Item>
+
+      <Form.Item name={['settings', 'region']} label={t('pages.inbounds.form.awgRegion')} tooltip={t('pages.inbounds.form.awgRegionHint')}>
+        <Select
+          options={[
+            { value: 'ru', label: 'RU (включая РФ-сервисы: yandex/vk/gosuslugi)' },
+            { value: 'world', label: 'World (только глобальные домены)' },
           ]}
         />
       </Form.Item>
