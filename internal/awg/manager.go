@@ -253,6 +253,9 @@ func renderServerConf(inst Instance) string {
 	fmt.Fprintf(&b, "[Interface]\n")
 	fmt.Fprintf(&b, "PrivateKey = %s\n", inst.PrivateKey)
 	fmt.Fprintf(&b, "ListenPort = %d\n", inst.Port)
+	if inst.Address != "" {
+		fmt.Fprintf(&b, "Address = %s\n", inst.Address)
+	}
 	fmt.Fprintf(&b, "MTU = %d\n", inst.MTU)
 	if inst.DNS != "" {
 		fmt.Fprintf(&b, "DNS = %s\n", inst.DNS)

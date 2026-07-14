@@ -25,6 +25,7 @@ type Instance struct {
 	Ifname  string // e.g. "awg1"
 	MTU     int
 	DNS     string
+	Address string // server tunnel address, e.g. "10.8.0.1/24"; written to [Interface].Address
 	PrivateKey string
 	// Obfuscation (matches AWGParams fields; sourced from inbound.Settings).
 	Jc   int
@@ -79,6 +80,7 @@ func (inst Instance) fingerprint() string {
 		inst.PrivateKey,
 		strconv.Itoa(inst.MTU),
 		inst.DNS,
+		inst.Address,
 		strconv.Itoa(inst.Jc),
 		strconv.Itoa(inst.Jmin),
 		strconv.Itoa(inst.Jmax),
@@ -115,6 +117,7 @@ func InstanceFromInbound(ib *model.Inbound) (Instance, bool) {
 		PrivateKey string `json:"privateKey"`
 		MTU        int    `json:"mtu"`
 		DNS        string `json:"dns"`
+		Address    string `json:"address"`
 		Jc         int    `json:"jc"`
 		Jmin       int    `json:"jmin"`
 		Jmax       int    `json:"jmax"`
@@ -163,6 +166,7 @@ func InstanceFromInbound(ib *model.Inbound) (Instance, bool) {
 		Ifname:     ifnameFor(ib.Id),
 		MTU:        orDefault(s.MTU, 1320),
 		DNS:        s.DNS,
+		Address:    s.Address,
 		PrivateKey: s.PrivateKey,
 		Jc:         s.Jc,
 		Jmin:       s.Jmin,
