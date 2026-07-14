@@ -59,7 +59,7 @@ func (a *InboundController) awgGenerateObfuscation(c *gin.Context) {
 		cps.MimicryProfile(req.MimicryProfile),
 		cps.Region(req.Region),
 		req.Domain,
-		req.FullI1I5,
+		!req.FullI1I5, // GenerateCPS's onlyI1 is the inverse of "full I1-I5"
 	)
 	if err != nil {
 		jsonMsg(c, "awg obfuscation: CPS generation failed", err)
