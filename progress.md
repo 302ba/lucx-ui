@@ -270,9 +270,9 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **Релиз v3.5.0-lucx.4** (latest) — все 3 фазы работают.
 
 ## Релизы
-- v3.5.0-lucx.6 (latest) — форма: выбор профиля обфускации + TLS + регион ✅
+- v3.5.0-lucx.7 (latest) — QR и скачивание .conf для AWG-клиентов ✅
+- v3.5.0-lucx.6 (устарел, удалён) — форма: выбор профиля обфускации
 - v3.5.0-lucx.5 (устарел, удалён) — e2e фикс Address
-- v3.5.0-lucx.4 (устарел, удалён) — Фаза 3 header protection
 - v3.5.0-lucx.3 (устарел, удалён) — фикс onlyI1
 - v3.5.0-lucx.2 (устарел, удалён) — Фазы 1-3 (баг onlyI1)
 - v3.5.0-lucx.1 (устарел, удалён) — Фаза 1
@@ -306,6 +306,31 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 - TLS Standard RU → jc/jmin/jmax (5/76/237) + I1 (704 байт TLS ClientHello)
 - QUIC Pro World full → все 5 пакетов I1-I5 (2402/1090/148/134/146)
 - awg1 поднят, peer, подписка работает
+
+## QR и скачивание .conf для AWG-клиентов (2026-07-14, v3.5.0-lucx.7)
+
+Раньше QR и кнопка скачивания .conf в UI клиента работали только для WireGuard — `wireguardConfig.ts` (buildWireguardClientConfig/findWireguardInbound) искал только `protocol === 'wireguard'` и не вставлял обфускацию. Для AWG-клиента .conf был бы неполным (без Jc/S1-S4/H1-H4/I1-I5 и без серверного publicKey).
+
+**Backend (`internal/web/service/inbound.go`):**
+- `InboundOption`: поля `awgServerAddress` + `awgObfuscation` (пре-рендеренный блок Jc/S1-S4/H1-H4/I1-I5 как .conf-строка)
+- `inboundWireguardHints`: работает и для AWG (Curve25519 тот же, `privateKey`→publicKey derivation, mtu, dns)
+- `inboundAwgHints`: достаёт server address + обфускацию из settings
+- OpenAPI/Zod типы регенерированы (`npm run gen`)
+
+**Frontend:**
+- `wireguardConfig.ts`: `buildAwgClientConfig` (с обфускацией в [Interface]), `findAwgInbound`, `isAwgClient`
+- `schemas/client.ts`: `InboundOptionSchema` += `awgServerAddress`/`awgObfuscation`
+- `ClientQrModal`: AWG-панель с QR + скачивание (`<email>-awg.conf`)
+- `ClientInfoModal`: AWG ConfigBlock с QR + скачивание
+- i18n: `awgConfig` ключ (en-US, ru-RU)
+
+**Проверка в проде (v3.5.0-lucx.7):** InboundOption для awg-инбаунда содержит:
+- `wgPublicKey: dMeIQIN79x...` (серверный publicKey, derived) ✅
+- `wgMtu: 1320`, `wgDns: 1.1.1.1, 1.0.0.1` ✅
+- `awgServerAddress: 10.8.0.1/24` ✅
+- `awgObfuscation`: полный блок Jc/Jmin/Jmax/S1-S4/H1-H4 ✅
+
+Теперь AWG-клиент в UI показывает QR и кнопку скачивания полного .conf с обфускацией, как WireGuard.
 
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
