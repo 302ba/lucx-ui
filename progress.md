@@ -255,6 +255,26 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 - ✅ jc/jmin/jmax/s1-s4/h1-h4 (4 квадранта) — корректно
 - ✅ amneziawg:// подписка работает
 
+## Фаза 3: скан хоста — РАБОТАЕТ (v3.5.0-lucx.4, 2026-07-14)
+
+**Systematic debugging** выявил рут-козу и два бага в `internal/awg/signature/capture.go`:
+
+**Баг 1 (длина):** `buildTLSClientHello` через `crypto/tls` генерировал ClientHello ~1482 байт — не помещается в QUIC Initial (min 1200). Initial получался 1537 байт, google отвечал ICMP unreachable. **Фикс:** переписал на мануальную сборку минимального Chrome-like ClientHello (~250 байт: SNI, supported_versions TLS1.3, supported_groups x25519, signature_algorithms, key_share x25519 32B, ALPN h3, psk_kex_modes). Возвращает handshake message (тип 0x01), не TLS record — QUIC CRYPTO frame несёт handshake напрямую.
+
+**Баг 2 (рут-коза, header protection):** `mask[0] & 0x0F` применялся к `protected[pnOffset]` (первый байт pn) вместо `protected[0]` (form byte 0xC3). RFC 9001 §5.4: form byte (первый байт) маскируется на младшие 4 бита, pn bytes — `mask[1..pnLen]`. **Фикс:** `protected[0] ^= mask[0] & 0x0F`, pn bytes `protected[pnOffset+i] ^= mask[1+i]`.
+
+**Доказательство через tcpdump:** реальный curl `--http3` шлёт 1200 байт → google отвечает. Наш до фикса — 1537 байт → ICMP unreachable. После фикса — 1200 байт, структура идентична curl → google отвечает.
+
+**Проверка в проде:** captureHost API → `success: true`, I1=2406 (наш Initial), I2=172 (ответ google). cloudflare → I1=I2=2406. dns.google → I1=2406, I2=172.
+
+**Релиз v3.5.0-lucx.4** (latest) — все 3 фазы работают.
+
+## Релизы
+- v3.5.0-lucx.4 (latest) — Фазы 1-3 + фикс header protection ✅
+- v3.5.0-lucx.3 (устарел, удалён) — фикс onlyI1
+- v3.5.0-lucx.2 (устарел, удалён) — Фазы 1-3 (баг onlyI1)
+- v3.5.0-lucx.1 (устарел, удалён) — Фаза 1
+
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
 ---
