@@ -270,10 +270,27 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **Релиз v3.5.0-lucx.4** (latest) — все 3 фазы работают.
 
 ## Релизы
-- v3.5.0-lucx.4 (latest) — Фазы 1-3 + фикс header protection ✅
+- v3.5.0-lucx.5 (latest) — e2e фикс: серверный Address ✅
+- v3.5.0-lucx.4 (устарел, удалён) — Фаза 3 header protection
 - v3.5.0-lucx.3 (устарел, удалён) — фикс onlyI1
 - v3.5.0-lucx.2 (устарел, удалён) — Фазы 1-3 (баг onlyI1)
 - v3.5.0-lucx.1 (устарел, удалён) — Фаза 1
+
+## E2E тест — полная проверка (2026-07-14)
+
+**E2E = реальное клиентское подключение к серверу.** Поднял клиент awg-client на VPS (через awg-quick), подключение к серверу awg1 по loopback.
+
+**Найден e2e-баг:** серверный awg1 не имел Address в [Interface] — `renderServerConf` не писал туннельный IP. Клиент подключался (handshake OK, трафик рос), но пинг до 10.8.0.1 — 100% loss (у интерфейса нет внутреннего адреса).
+
+**Фикс:** поле `Address` в `Instance`, `InstanceFromInbound` парсит `settings.address`, `renderServerConf` пишет `Address = 10.8.0.1/24` в [Interface]. Zod-схема + `createDefaultAwgInboundSettings` — `address: '10.8.0.1/24'` (соответствует `defaultAwgBase` 10.8.0.0/24 в `client_awg.go`). Fingerprint включает Address (рестарт при смене подсети). Коммит `0e01908c`.
+
+**E2E после фикса (VPS 144.31.224.212):**
+- ✅ Клиент awg-client (10.8.0.2) → сервер awg1 (10.8.0.1)
+- ✅ Handshake: `latest handshake: 2 seconds ago`, AmneziaWG обфускация (Jc/Jmin/Jmax/S1-S4/H1-H4)
+- ✅ Ping 10.8.0.1 через туннель: **3/3 received, 0% loss, time=0.042ms**
+- ✅ Трафик: 124 B received, 2.01 KiB sent (растёт)
+
+**Полный цикл AWG подтверждён end-to-end:** установка → создание inbound → клиентский .conf → handshake → трафик через туннель.
 
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
