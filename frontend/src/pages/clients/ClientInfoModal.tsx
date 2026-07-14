@@ -12,7 +12,7 @@ import { isPostQuantumLink } from '@/lib/xray/inbound-link';
 import { LinkTags, linkMetaText, parseLinkParts } from '@/lib/xray/link-label';
 import { QrPanel } from '@/pages/inbounds/qr';
 import ConfigBlock from '@/components/clients/ConfigBlock';
-import { buildWireguardClientConfig, findWireguardInbound, isWireguardClient } from './wireguardConfig';
+import { buildWireguardClientConfig, findWireguardInbound, isWireguardClient, buildAwgClientConfig, findAwgInbound, isAwgClient } from './wireguardConfig'; // LUCX-HOOK: AWG
 import './ClientInfoModal.css';
 
 const INBOUND_PROTOCOL_COLORS: Record<string, string> = {
@@ -141,6 +141,13 @@ export default function ClientInfoModal({
     if (!client || !wgInbound || !isWireguardClient(client)) return '';
     return buildWireguardClientConfig(client, wgInbound, window.location.hostname, subSettings?.publicHost ?? '');
   }, [client, wgInbound, subSettings?.publicHost]);
+  // LUCX-HOOK: AWG — client .conf with obfuscation block.
+  const awgInbound = useMemo(() => findAwgInbound(client, inboundsById), [client, inboundsById]);
+  const awgConfigText = useMemo(() => {
+    if (!client || !awgInbound || !isAwgClient(client)) return '';
+    return buildAwgClientConfig(client, awgInbound, window.location.hostname, subSettings?.publicHost ?? '');
+  }, [client, awgInbound, subSettings?.publicHost]);
+  // END LUCX-HOOK
 
   async function copyValue(text: string) {
     if (!text) return;
@@ -507,6 +514,19 @@ export default function ClientInfoModal({
                 />
               </>
             )}
+            {/* LUCX-HOOK: AWG — client .conf block with obfuscation */}
+            {awgConfigText && client && (
+              <>
+                <Divider>{t('pages.clients.awgConfig')}</Divider>
+                <ConfigBlock
+                  label={t('pages.clients.config')}
+                  text={awgConfigText}
+                  fileName={`${client.email}-awg.conf`}
+                  qrRemark={client.email || 'peer'}
+                />
+              </>
+            )}
+            {/* END LUCX-HOOK */}
           </>
         )}
       </Modal>

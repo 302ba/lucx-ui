@@ -451,6 +451,8 @@ export const EXAMPLES: Record<string, unknown> = {
     "xver": 0
   },
   "InboundOption": {
+    "awgObfuscation": "",
+    "awgServerAddress": "",
     "enable": true,
     "id": 1,
     "listen": "",

@@ -303,6 +303,12 @@ type InboundOption struct {
 	WgPublicKey    string `json:"wgPublicKey,omitempty"`
 	WgMtu          int    `json:"wgMtu,omitempty"`
 	WgDns          string `json:"wgDns,omitempty"`
+	// AWG obfuscation block — the Jc/Jmin/Jmax/S1-S4/H1-H4/I1-I5 lines as they
+	// appear in a client .conf [Interface] section, plus the server tunnel
+	// address. Populated for AWG inbounds so the clients-page QR/.conf path
+	// can build a full AmneziaWG client config (mirrors the WG hints above).
+	AwgServerAddress string `json:"awgServerAddress,omitempty"`
+	AwgObfuscation   string `json:"awgObfuscation,omitempty"`
 	MtprotoDomain  string `json:"mtprotoDomain,omitempty"`
 	// Hosting node; nil for this panel's own inbounds. Lets the clients
 	// page map a node filter onto inbound IDs (#4997).
@@ -348,41 +354,56 @@ func (s *InboundService) GetInboundOptions(userId int) ([]InboundOption, error) 
 	out := make([]InboundOption, 0, len(rows))
 	for _, r := range rows {
 		wgPublicKey, wgMtu, wgDns := inboundWireguardHints(r.Protocol, r.Settings)
+		// LUCX-HOOK: AWG — server public key + obfuscation block for the
+		// clients-page QR/.conf path. AWG reuses the WG key derivation
+		// (Curve25519), so wgPublicKey/wgMtu/wgDns are also filled.
+		awgAddr, awgObf := "", ""
+		if r.Protocol == string(model.AWG) {
+			wgPublicKey, wgMtu, wgDns = inboundWireguardHints(r.Protocol, r.Settings)
+			awgAddr, awgObf = inboundAwgHints(r.Settings)
+		}
+		// END LUCX-HOOK
 		shareAddrStrategy := r.ShareAddrStrategy
 		if shareAddrStrategy == "node" {
 			shareAddrStrategy = ""
 		}
 		out = append(out, InboundOption{
 			Id:                r.Id,
-			Remark:            r.Remark,
-			Tag:               r.Tag,
-			Protocol:          r.Protocol,
-			Port:              r.Port,
-			Enable:            r.Enable,
-			TlsFlowCapable:    inboundCanEnableTlsFlow(r.Protocol, r.StreamSettings, r.Settings),
-			SsMethod:          inboundShadowsocksMethod(r.Protocol, r.Settings),
-			WgPublicKey:       wgPublicKey,
-			WgMtu:             wgMtu,
-			WgDns:             wgDns,
-			MtprotoDomain:     inboundMtprotoDomain(r.Protocol, r.Settings),
-			NodeId:            r.NodeId,
-			NodeAddress:       r.NodeAddress,
-			Listen:            r.Listen,
-			ShareAddr:         r.ShareAddr,
-			ShareAddrStrategy: shareAddrStrategy,
+			Remark:             r.Remark,
+			Tag:                r.Tag,
+			Protocol:           r.Protocol,
+			Port:               r.Port,
+			Enable:             r.Enable,
+			TlsFlowCapable:     inboundCanEnableTlsFlow(r.Protocol, r.StreamSettings, r.Settings),
+			SsMethod:           inboundShadowsocksMethod(r.Protocol, r.Settings),
+			WgPublicKey:        wgPublicKey,
+			WgMtu:              wgMtu,
+			WgDns:              wgDns,
+			AwgServerAddress:   awgAddr,
+			AwgObfuscation:     awgObf,
+			MtprotoDomain:      inboundMtprotoDomain(r.Protocol, r.Settings),
+			NodeId:             r.NodeId,
+			NodeAddress:        r.NodeAddress,
+			Listen:             r.Listen,
+			ShareAddr:          r.ShareAddr,
+			ShareAddrStrategy:  shareAddrStrategy,
 		})
 	}
 	return out, nil
 }
 
 func inboundWireguardHints(protocol string, settings string) (string, int, string) {
-	if protocol != string(model.WireGuard) || strings.TrimSpace(settings) == "" {
+	// LUCX-HOOK: AWG — AmneziaWG stores the server keypair/mtu/dns in the same
+	// settings fields as WireGuard (privateKey/publicKey/mtu/dns), and uses
+	// the same Curve25519 base key, so the key-derivation hints are identical.
+	if (protocol != string(model.WireGuard) && protocol != string(model.AWG)) || strings.TrimSpace(settings) == "" {
 		return "", 0, ""
 	}
 	var parsed struct {
 		PublicKey string `json:"publicKey"`
 		PubKey    string `json:"pubKey"`
-		SecretKey string `json:"secretKey"`
+		SecretKey string `json:"privateKey"` // AWG stores the server key as `privateKey`
+		WgSecret  string `json:"secretKey"`  // WG stores it as `secretKey`
 		MTU       int    `json:"mtu"`
 		DNS       string `json:"dns"`
 	}
@@ -393,13 +414,99 @@ func inboundWireguardHints(protocol string, settings string) (string, int, strin
 	if publicKey == "" {
 		publicKey = parsed.PubKey
 	}
-	if publicKey == "" && parsed.SecretKey != "" {
-		if derived, err := wgutil.PublicKeyFromPrivate(parsed.SecretKey); err == nil {
+	// Derive the server public key from whichever private-key field is set.
+	// AWG uses `privateKey`, WG uses `secretKey` — try both so this works for
+	// either protocol.
+	secret := parsed.SecretKey
+	if secret == "" {
+		secret = parsed.WgSecret
+	}
+	if publicKey == "" && secret != "" {
+		if derived, err := wgutil.PublicKeyFromPrivate(secret); err == nil {
 			publicKey = derived
 		}
 	}
 	return publicKey, parsed.MTU, parsed.DNS
 }
+
+// inboundAwgHints returns the AWG obfuscation block as it should appear in a
+// client .conf [Interface] section (Jc/Jmin/Jmax/S1-S4/H1-H4/I1-I5 lines) and
+// the server tunnel address. Both are read from the inbound settings so the
+// clients-page QR/.conf path can render a full AmneziaWG client config. Empty
+// when the settings carry no obfuscation (lite/level-1).
+//
+// LUCX-HOOK: AWG obfuscation hints for the clients-page QR/.conf path.
+func inboundAwgHints(settings string) (address string, obfuscation string) {
+	if strings.TrimSpace(settings) == "" {
+		return "", ""
+	}
+	var s struct {
+		Address string `json:"address"`
+		Jc      int    `json:"jc"`
+		Jmin    int    `json:"jmin"`
+		Jmax    int    `json:"jmax"`
+		S1      int    `json:"s1"`
+		S2      int    `json:"s2"`
+		S3      int    `json:"s3"`
+		S4      int    `json:"s4"`
+		H1      string `json:"h1"`
+		H2      string `json:"h2"`
+		H3      string `json:"h3"`
+		H4      string `json:"h4"`
+		I1      string `json:"i1"`
+		I2      string `json:"i2"`
+		I3      string `json:"i3"`
+		I4      string `json:"i4"`
+		I5      string `json:"i5"`
+	}
+	if err := json.Unmarshal([]byte(settings), &s); err != nil {
+		return "", ""
+	}
+	var b strings.Builder
+	if s.Jc > 0 {
+		fmt.Fprintf(&b, "Jc = %d\n", s.Jc)
+	}
+	if s.Jmin > 0 {
+		fmt.Fprintf(&b, "Jmin = %d\n", s.Jmin)
+	}
+	if s.Jmax > 0 {
+		fmt.Fprintf(&b, "Jmax = %d\n", s.Jmax)
+	}
+	if s.S1 > 0 {
+		fmt.Fprintf(&b, "S1 = %d\n", s.S1)
+	}
+	if s.S2 > 0 {
+		fmt.Fprintf(&b, "S2 = %d\n", s.S2)
+	}
+	if s.S3 > 0 {
+		fmt.Fprintf(&b, "S3 = %d\n", s.S3)
+	}
+	if s.S4 > 0 {
+		fmt.Fprintf(&b, "S4 = %d\n", s.S4)
+	}
+	for _, h := range []string{s.H1, s.H2, s.H3, s.H4} {
+		if h != "" {
+			fmt.Fprintf(&b, "H = %s\n", h)
+		}
+	}
+	// Re-mark the H lines with the correct index (the loop above wrote a plain
+	// "H = " placeholder; replace each in order with H1/H2/H3/H4).
+	block := b.String()
+	for _, idx := range []string{"1", "2", "3", "4"} {
+		block = strings.Replace(block, "H = ", "H"+idx+" = ", 1)
+	}
+	var out strings.Builder
+	out.WriteString(block)
+	for _, ip := range []struct{ idx, val string }{
+		{"1", s.I1}, {"2", s.I2}, {"3", s.I3}, {"4", s.I4}, {"5", s.I5},
+	} {
+		if ip.val != "" {
+			fmt.Fprintf(&out, "I%s = <b 0x%s>\n", ip.idx, ip.val)
+		}
+	}
+	return s.Address, out.String()
+}
+// END LUCX-HOOK
 
 // inboundMtprotoDomain returns the inbound-level FakeTLS default domain, used by
 // the clients UI to seed a new mtproto client's secret with the right fronting

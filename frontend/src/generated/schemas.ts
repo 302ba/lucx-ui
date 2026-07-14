@@ -1716,7 +1716,8 @@ export const SCHEMAS: Record<string, unknown> = {
           "mixed",
           "tunnel",
           "tun",
-          "mtproto"
+          "mtproto",
+          "awg"
         ],
         "example": "vless",
         "type": "string"
@@ -1859,6 +1860,13 @@ export const SCHEMAS: Record<string, unknown> = {
   },
   "InboundOption": {
     "properties": {
+      "awgObfuscation": {
+        "type": "string"
+      },
+      "awgServerAddress": {
+        "description": "AWG obfuscation block — the Jc/Jmin/Jmax/S1-S4/H1-H4/I1-I5 lines as they\nappear in a client .conf [Interface] section, plus the server tunnel\naddress. Populated for AWG inbounds so the clients-page QR/.conf path\ncan build a full AmneziaWG client config (mirrors the WG hints above).",
+        "type": "string"
+      },
       "enable": {
         "example": true,
         "type": "boolean"

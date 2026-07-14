@@ -966,7 +966,8 @@
         "delOrphans": "Удалено клиентов без входящего: {count}",
         "imported": "Импортировано клиентов: {count}",
         "importedMixed": "Импортировано: {ok}, пропущено: {failed}"
-      }
+      },
+      "awgConfig": "AWG-конфиг"
     },
     "groups": {
       "title": "Группы",

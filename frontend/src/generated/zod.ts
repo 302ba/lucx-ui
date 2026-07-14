@@ -424,7 +424,7 @@ export const InboundSchema = z.object({
   nodeId: z.number().int().nullable().optional(),
   originNodeGuid: z.string().optional(),
   port: z.number().int().min(0).max(65535),
-  protocol: z.enum(['vmess', 'vless', 'trojan', 'shadowsocks', 'wireguard', 'hysteria', 'http', 'mixed', 'tunnel', 'tun', 'mtproto']),
+  protocol: z.enum(['vmess', 'vless', 'trojan', 'shadowsocks', 'wireguard', 'hysteria', 'http', 'mixed', 'tunnel', 'tun', 'mtproto', 'awg']),
   remark: z.string(),
   settings: z.unknown(),
   shareAddr: z.string(),
@@ -460,6 +460,8 @@ export const InboundFallbackSchema = z.object({
 export type InboundFallback = z.infer<typeof InboundFallbackSchema>;
 
 export const InboundOptionSchema = z.object({
+  awgObfuscation: z.string().optional(),
+  awgServerAddress: z.string().optional(),
   enable: z.boolean(),
   id: z.number().int(),
   listen: z.string().optional(),

@@ -6,7 +6,7 @@ import { isPostQuantumLink } from '@/lib/xray/inbound-link';
 import { LinkTags, linkMetaText, parseLinkParts } from '@/lib/xray/link-label';
 import { QrPanel } from '@/pages/inbounds/qr';
 import type { ClientRecord, InboundOption } from '@/hooks/useClients';
-import { buildWireguardClientConfig, findWireguardInbound, isWireguardClient } from './wireguardConfig';
+import { buildWireguardClientConfig, findWireguardInbound, isWireguardClient, buildAwgClientConfig, findAwgInbound, isAwgClient } from './wireguardConfig'; // LUCX-HOOK: AWG
 
 interface SubSettings {
   enable: boolean;
@@ -59,7 +59,15 @@ export default function ClientQrModal({
     return buildWireguardClientConfig(client, wgInbound, window.location.hostname, subSettings?.publicHost ?? '');
   }, [client, wgInbound, subSettings?.publicHost]);
 
-  const hasAnything = !!subLink || !!subJsonLink || !!wgConfigText || links.length > 0;
+  // LUCX-HOOK: AWG — client .conf for AmneziaWG (with obfuscation block).
+  const awgInbound = useMemo(() => findAwgInbound(client, inboundsById), [client, inboundsById]);
+  const awgConfigText = useMemo(() => {
+    if (!client || !awgInbound || !isAwgClient(client)) return '';
+    return buildAwgClientConfig(client, awgInbound, window.location.hostname, subSettings?.publicHost ?? '');
+  }, [client, awgInbound, subSettings?.publicHost]);
+  // END LUCX-HOOK
+
+  const hasAnything = !!subLink || !!subJsonLink || !!wgConfigText || !!awgConfigText || links.length > 0;
 
   useEffect(() => {
     if (!open || !client?.subId) {
@@ -135,8 +143,23 @@ export default function ClientQrModal({
         ),
       });
     }
+    // LUCX-HOOK: AWG — client .conf panel with QR + download.
+    if (awgConfigText) {
+      out.push({
+        key: 'awg-config',
+        label: <Tag color="purple" style={{ margin: 0 }}>{t('pages.clients.awgConfig')}</Tag>,
+        children: (
+          <QrPanel
+            value={awgConfigText}
+            remark={client?.email || 'peer'}
+            downloadName={`${client?.email || 'peer'}-awg.conf`}
+          />
+        ),
+      });
+    }
+    // END LUCX-HOOK
     return out;
-  }, [subLink, subJsonLink, wgConfigText, links, client?.email, t]);
+  }, [subLink, subJsonLink, wgConfigText, awgConfigText, links, client?.email, t]);
 
   useEffect(() => {
     if (!open) {
