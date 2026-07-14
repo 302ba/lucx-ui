@@ -13,12 +13,10 @@ import (
 	"crypto/hkdf"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/url"
 	"strings"
@@ -42,6 +40,13 @@ const (
 	readTimeout   = 5 * time.Second
 	minPackets    = 2 // need at least our Initial + 1 reply
 )
+
+// randomBytes returns n cryptographically-strong random bytes.
+func randomBytes(n int) []byte {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return b
+}
 
 // Capture sends a QUIC v1 Initial (carrying a TLS ClientHello with SNI=domain)
 // to the host on UDP 443, reads the server's reply packets, and returns them
@@ -164,124 +169,193 @@ func fillPackets(packets [][]byte) CaptureResult {
 // buildQUICInitial assembles a QUIC v1 Long-Header Initial packet carrying a
 // TLS 1.3 ClientHello (SNI=host), encrypts the CRYPTO frame payload with
 // AES-128-GCM (initial keys derived from the random DCID via HKDF-SHA256 per
-// RFC 9001 §5.2), and applies header protection (RFC 9001 §5.4).
+// RFC 9001 §5.2), and applies header protection (RFC 9001 §5.4). Ported from
+// hoaxisr/awg-manager internal/signature/capture.go.
 func buildQUICInitial(host string) ([]byte, error) {
-	ch, err := buildTLSClientHello(host)
+	chPayload, err := buildTLSClientHello(host)
 	if err != nil {
 		return nil, err
 	}
+	// buildTLSClientHello returns the ClientHello handshake message (starts
+	// with type 0x01), which is exactly what the QUIC CRYPTO frame carries —
+	// no TLS record header to strip.
+
 	dcid := make([]byte, 8)
 	if _, err := rand.Read(dcid); err != nil {
 		return nil, err
 	}
-	scid := make([]byte, 8)
-	if _, err := rand.Read(scid); err != nil {
-		return nil, err
-	}
-	// CRYPTO frame (type 0x06, offset 0, length, ClientHello).
-	var crypto bytes.Buffer
-	crypto.WriteByte(0x06)
-	crypto.Write(appendVarint(0))                // offset
-	crypto.Write(appendVarint(len(ch)))          // length
-	crypto.Write(ch)
-	return buildInitialPacket(dcid, scid, crypto.Bytes()), nil
-}
-
-// buildInitialPacket builds the Long Header, derives initial keys from dcid,
-// encrypts the payload, and applies header protection.
-func buildInitialPacket(dcid, scid, payload []byte) []byte {
-	const pnLen = 4
-	var hdr bytes.Buffer
-	hdr.WriteByte(0xC0 | byte(pnLen-1))          // 0xC3 (long, 4-byte pn)
-	hdr.Write([]byte{0x00, 0x00, 0x00, 0x01})    // QUIC v1
-	hdr.WriteByte(byte(len(dcid)))
-	hdr.Write(dcid)
-	hdr.WriteByte(byte(len(scid)))
-	hdr.Write(scid)
-	hdr.Write(appendVarint(0))                   // token length = 0
-	pn := make([]byte, pnLen)                    // packet number 0
-	// Pad so the full packet reaches ~1200 bytes (QUIC minimum Initial).
-	lengthVal := pnLen + len(payload)
-	needed := 1200 - hdr.Len() - varintLen(lengthVal) - pnLen
-	if needed > len(payload) {
-		pad := needed - len(payload)
-		padded := make([]byte, len(payload)+pad)
-		copy(padded, payload)
-		payload = padded
-		lengthVal = pnLen + len(payload)
-	}
-	hdr.Write(appendVarint(lengthVal))
-	hdr.Write(pn) // unprotected pn (masked later)
-
 	// Derive initial keys from dcid (RFC 9001 §5.2).
 	initialSecret, _ := hkdf.Extract(sha256.New, dcid, quicV1Salt)
 	clientSecret := hkdfExpandLabel(initialSecret, "client in", nil, 32)
-	key := hkdfExpandLabel(clientSecret, "quic key", nil, 16)  // AES-128
-	iv := hkdfExpandLabel(clientSecret, "quic iv", nil, 12)
-	hp := hkdfExpandLabel(clientSecret, "quic hp", nil, 16)    // header protection
+	clientKey := hkdfExpandLabel(clientSecret, "quic key", nil, 16) // AES-128
+	clientIV := hkdfExpandLabel(clientSecret, "quic iv", nil, 12)
+	clientHP := hkdfExpandLabel(clientSecret, "quic hp", nil, 16) // header protection
 
-	// Nonce = iv XOR packet_number (pn=0 → nonce = iv).
-	nonce := make([]byte, 12)
-	copy(nonce, iv)
+	// CRYPTO frame: type 0x06, offset 0x00, var-int length, ClientHello payload.
+	var crypto bytes.Buffer
+	crypto.WriteByte(0x06)
+	crypto.WriteByte(0x00) // offset = 0 (1-byte var-int form)
+	crypto.Write(appendVarint(len(chPayload)))
+	crypto.Write(chPayload)
 
-	// AES-128-GCM: AAD = unprotected header (without pn), plaintext = pn + payload.
-	block, _ := aes.NewCipher(key)
+	const pnLen = 4
+	pn := []byte{0x00, 0x00, 0x00, 0x00} // packet number 0
+
+	// Unprotected header (AAD), following hoaxisr byte order:
+	// 0xC3 (long | fixed | initial | pn_len=4), QUIC v1, dcid_len(8) + dcid,
+	// scid_len(0), token_len(0), length var-int, packet number.
+	block, _ := aes.NewCipher(clientKey)
 	gcm, _ := cipher.NewGCM(block)
-	aad := hdr.Bytes()[:hdr.Len()-pnLen] // header up to but not including pn
-	plaintext := append(append([]byte{}, pn...), payload...)
-	ciphertext := gcm.Seal(nil, nonce, plaintext, aad)
+	plaintext := append(append([]byte{}, pn...), crypto.Bytes()...)
+	// Pad plaintext so the full packet reaches 1200 bytes (QUIC minimum Initial).
+	// headerEstimate = 1(flags) + 4(version) + 1(dcid_len) + 8(dcid) + 1(scid_len) +
+	//                   1(token_len) + 2(length var-int, our sizes fit 2 bytes) + 4(pn)
+	headerEstimate := 1 + 4 + 1 + len(dcid) + 1 + 1 + 2 + pnLen
+	minPayload := 1200 - headerEstimate - gcm.Overhead() // subtract 16-byte AEAD tag
+	if len(plaintext) < minPayload {
+		pad := make([]byte, minPayload-len(plaintext))
+		plaintext = append(plaintext, pad...)
+	}
+	// lengthVal covers pn + padded plaintext + AEAD tag (16).
+	lengthVal := pnLen + len(plaintext) + gcm.Overhead()
 
-	// Header protection (RFC 9001 §5.4): mask = AES-ECB(hp, sample), sample =
-	// first 16 bytes of ciphertext. XOR mask into the form byte (low 4 bits)
-	// and the pn bytes.
-	protected := make([]byte, 0, len(aad)+len(ciphertext))
-	protected = append(protected, aad...)
-	protected = append(protected, ciphertext...)
+	var header bytes.Buffer
+	header.WriteByte(0xC3)
+	header.Write([]byte{0x00, 0x00, 0x00, 0x01}) // QUIC v1
+	header.WriteByte(byte(len(dcid)))
+	header.Write(dcid)
+	header.WriteByte(0x00) // SCID length = 0 (hoaxisr sends no SCID)
+	header.WriteByte(0x00) // token length = 0
+	header.Write(appendVarint(lengthVal))
+	header.Write(pn) // unprotected pn (masked later)
+
+	// AES-128-GCM: nonce = clientIV XOR packet_number (pn=0 → nonce = IV).
+	nonce := make([]byte, 12)
+	copy(nonce, clientIV)
+	ciphertext := gcm.Seal(nil, nonce, plaintext, header.Bytes())
+
+	// Header protection (RFC 9001 §5.4): mask = AES-ECB(clientHP, sample),
+	// sample = first 16 bytes of ciphertext. XOR mask into the form byte (low
+	// 4 bits for long headers) and the 4 pn bytes.
+	protected := append(header.Bytes(), ciphertext...)
+	pnOffset := header.Len() - pnLen
 	if len(ciphertext) >= 16 {
-		mask := aesECB(hp, ciphertext[:16])
-		pnOffset := len(aad) - pnLen // position of pn in the buffer
+		mask := aesECB(clientHP, ciphertext[:16])
 		protected[pnOffset] ^= mask[0] & 0x0F
 		for i := 0; i < pnLen; i++ {
 			protected[pnOffset+1+i] ^= mask[1+i]
 		}
 	}
-	return protected
+	return protected, nil
 }
 
-// buildTLSClientHello produces a raw TLS 1.3 ClientHello (with SNI=host, ALPN
-// h3) using crypto/tls via a net.Pipe: we drive a TLS client whose
-// ServerName=host and ALPN=["h3"], read the raw ClientHello bytes from the
-// pipe before the (expected) handshake failure. Ported from hoaxisr.
+// buildTLSClientHello builds a minimal TLS 1.3 ClientHello handshake message
+// (NOT wrapped in a TLS record — QUIC's CRYPTO frame carries the handshake
+// message directly) for the given SNI host. Kept small (~250 bytes) so it fits
+// inside a single 1200-byte QUIC Initial (the QUIC minimum), which a real QUIC
+// server (google/cloudflare) accepts. A crypto/tls-driven ClientHello would be
+// ~1480 bytes (session_ticket, key_share, full extension set) and overflow the
+// 1200-byte Initial, so we build a minimal Chrome-like ClientHello by hand:
+// SNI, supported_versions (TLS 1.3), supported_groups (x25519), key_share
+// (x25519 32B), signature_algorithms, ALPN (h3), padded.
 func buildTLSClientHello(host string) ([]byte, error) {
-	clientConn, serverConn := net.Pipe()
-	defer clientConn.Close()
-	defer serverConn.Close()
-
-	var captured bytes.Buffer
-	done := make(chan error, 1)
-	go func() {
-		_, err := io.Copy(&captured, serverConn)
-		done <- err
-	}()
-
-	tlsConf := &tls.Config{
-		ServerName:         host,
-		NextProtos:         []string{"h3"},
-		MinVersion:         tls.VersionTLS13,
-		MaxVersion:         tls.VersionTLS13,
-		InsecureSkipVerify: true,
+	// Handshake body (ClientHello fields after the type + 24-bit length).
+	var hs bytes.Buffer
+	// legacy_version = 0x0303 (TLS 1.2, carried in TLS 1.3 for compat).
+	writeUint16(&hs, 0x0303)
+	// random (32 bytes).
+	hs.Write(randomBytes(32))
+	// legacy_session_id (32 random bytes + 1-byte length) — Chrome keeps a
+	// non-empty session id for middlebox compat.
+	sid := randomBytes(32)
+	hs.WriteByte(byte(len(sid)))
+	hs.Write(sid)
+	// legacy_cipher_suites: TLS_AES_128_GCM_SHA256 (0x1301) +
+	// TLS_AES_256_GCM_SHA384 (0x1302) + TLS_CHACHA20_POLY1305_SHA256 (0x1303).
+	ciphers := []uint16{0x1301, 0x1302, 0x1303}
+	writeUint16(&hs, len(ciphers)*2)
+	for _, c := range ciphers {
+		writeUint16(&hs, int(c))
 	}
-	tlsConn := tls.Client(clientConn, tlsConf)
-	_ = tlsConn.SetDeadline(time.Now().Add(2 * time.Second))
-	_ = tlsConn.Handshake() // fails — server side is just a pipe
-	clientConn.Close()
-	<-done
+	// legacy_compression_methods: 1 byte (null only).
+	hs.WriteByte(0x01)
+	hs.WriteByte(0x00)
 
-	ch := captured.Bytes()
-	if len(ch) < 10 {
-		return nil, fmt.Errorf("signature: TLS ClientHello capture too short (%d bytes)", len(ch))
+	// Extensions.
+	var ext bytes.Buffer
+	// server_name (SNI).
+	writeUint16(&ext, 0x0000)
+	var sni bytes.Buffer
+	sni.WriteByte(0x00) // host_name type
+	writeUint16(&sni, len(host))
+	sni.WriteString(host)
+	writeUint16(&ext, 2+len(sni.Bytes())) // 2-byte server_name list length + name
+	writeUint16(&ext, len(sni.Bytes()))
+	ext.Write(sni.Bytes())
+	// supported_versions (0x002b): TLS 1.3 (0x0304).
+	writeUint16(&ext, 0x002B)
+	writeUint16(&ext, 3)
+	ext.WriteByte(2) // 2 bytes of versions
+	writeUint16(&ext, 0x0304)
+	// supported_groups (0x000a): x25519 (0x001d).
+	writeUint16(&ext, 0x000A)
+	writeUint16(&ext, 3)
+	ext.WriteByte(2)
+	writeUint16(&ext, 0x001D)
+	// signature_algorithms (0x000d): ecdsa_secp256r1_sha256 (0x0403),
+	// rsa_pss_rsae_sha256 (0x0804), rsa_pkcs1_sha256 (0x0401).
+	algs := []uint16{0x0403, 0x0804, 0x0401}
+	writeUint16(&ext, 0x000D)
+	writeUint16(&ext, 2+len(algs)*2)
+	writeUint16(&ext, len(algs)*2)
+	for _, a := range algs {
+		writeUint16(&ext, int(a))
 	}
-	return ch, nil
+	// key_share (0x0033): x25519 32-byte random.
+	var ks bytes.Buffer
+	writeUint16(&ks, 0x001D) // x25519
+	writeUint16(&ks, 32)
+	ks.Write(randomBytes(32))
+	writeUint16(&ext, 0x0033)
+	writeUint16(&ext, 2+len(ks.Bytes())) // 2-byte list length + entry
+	writeUint16(&ext, len(ks.Bytes()))
+	ext.Write(ks.Bytes())
+	// ALPN (0x0010): h3.
+	var protos bytes.Buffer
+	protos.WriteByte(2) // length of "h3"
+	protos.WriteString("h3")
+	writeUint16(&ext, 0x0010)
+	writeUint16(&ext, 2+len(protos.Bytes()))
+	writeUint16(&ext, len(protos.Bytes()))
+	ext.Write(protos.Bytes())
+	// psk_key_exchange_modes (0x002d): psk_dhe_ke (1).
+	writeUint16(&ext, 0x002D)
+	writeUint16(&ext, 2)
+	ext.WriteByte(1)
+	ext.WriteByte(0x01)
+
+	// Append extensions block.
+	writeUint16(&hs, ext.Len())
+	hs.Write(ext.Bytes())
+
+	// Wrap in a handshake header: type 0x01 (ClientHello), 24-bit length.
+	var msg bytes.Buffer
+	msg.WriteByte(0x01)
+	writeUint24(&msg, hs.Len())
+	msg.Write(hs.Bytes())
+	return msg.Bytes(), nil
+}
+
+// writeUint16 writes a big-endian uint16 (accepts int or uint16).
+func writeUint16(b *bytes.Buffer, v int) {
+	var buf [2]byte
+	binary.BigEndian.PutUint16(buf[:], uint16(v))
+	b.Write(buf[:])
+}
+
+// writeUint24 writes a 3-byte big-endian value (TLS handshake length).
+func writeUint24(b *bytes.Buffer, v int) {
+	b.Write([]byte{byte(v >> 16), byte(v >> 8), byte(v)})
 }
 
 // hkdfExpandLabel implements HKDF-Expand-Label (RFC 8446 §7.1) with the TLS
@@ -310,20 +384,6 @@ func appendVarint(v int) []byte {
 		return []byte{byte(v>>24) | 0x80, byte(v >> 16), byte(v >> 8), byte(v)}
 	default:
 		return []byte{byte(v>>56) | 0xC0, byte(v >> 48), byte(v >> 40), byte(v >> 32), byte(v >> 24), byte(v >> 16), byte(v >> 8), byte(v)}
-	}
-}
-
-// varintLen returns the byte length of the varint encoding for v.
-func varintLen(v int) int {
-	switch {
-	case v < 64:
-		return 1
-	case v < 16384:
-		return 2
-	case v < 1073741824:
-		return 4
-	default:
-		return 8
 	}
 }
 
