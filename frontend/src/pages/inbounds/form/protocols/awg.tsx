@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { App, Button, Form, Input, InputNumber, Select, Space, Switch } from 'antd';
+import { Button, Form, Input, InputNumber, message, Select, Space, Switch } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 
 import { FormField } from '@/components/form/rhf';
@@ -48,7 +48,7 @@ async function captureHostSignature(domain: string): Promise<Record<string, stri
 
 export default function AwgFields() {
   const { t } = useTranslation();
-  const { message: messageApi } = App.useApp();
+  const [messageApi, messageContextHolder] = message.useMessage();
   // react-hook-form context (the inbound form is rhf, NOT AntD form). Use
   // useFormContext so setValue/getValue read/write the same store the
   // FormField/Controller bindings use — a plain AntD Form.useFormInstance()
@@ -112,6 +112,7 @@ export default function AwgFields() {
 
   return (
     <>
+      {messageContextHolder}
       <Form.Item label={t('pages.inbounds.form.awgServerKeys')}>
         <Space.Compact block>
           <FormField name={['settings', 'privateKey']} noStyle>
