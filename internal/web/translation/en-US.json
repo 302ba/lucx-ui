@@ -720,7 +720,9 @@
         "awgRouteThroughXrayHint": "Send the AWG kernel interface's decrypted packets into Xray's router via an injected TUN inbound, so egress obeys routing rules. Mirrors mtproto's routeThroughXray.",
         "awgRouteOutbound": "Route outbound",
         "awgRouteOutboundHint": "Outbound tag the AWG TUN inbound routes to. Pick a configured outbound or balancer; leave empty for direct.",
-        "awgRouteOutboundPlaceholder": "Select outbound tag"
+        "awgRouteOutboundPlaceholder": "Select outbound tag",
+        "awgAddress": "Server tunnel address",
+        "awgAddressHint": "Server tunnel IP/CIDR, e.g. 10.8.0.1/24. Clients get addresses from this subnet."
       },
       "info": {
         "mode": "Mode",

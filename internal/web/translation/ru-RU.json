@@ -720,7 +720,9 @@
         "awgRouteThroughXrayHint": "Направить расшифрованные пакеты AWG-интерфейса в маршрутизатор Xray через инжектируемый TUN-inbound, чтобы исходящий трафик подчинялся правилам маршрутизации. Как у mtproto routeThroughXray.",
         "awgRouteOutbound": "Исходящий outbound",
         "awgRouteOutboundHint": "Тег outbound, куда маршрутизируется AWG TUN-inbound. Выберите настроенный outbound или balancer; пусто = direct.",
-        "awgRouteOutboundPlaceholder": "Выберите тег outbound"
+        "awgRouteOutboundPlaceholder": "Выберите тег outbound",
+        "awgAddress": "Туннельный адрес сервера",
+        "awgAddressHint": "Туннельный IP/CIDR сервера, напр. 10.8.0.1/24. Клиенты получают адреса из этой подсети."
       },
       "info": {
         "mode": "Режим",
