@@ -956,6 +956,7 @@ export default function InboundFormModal({
                 Protocols.TUN,
                 Protocols.WIREGUARD,
                 Protocols.MTPROTO,
+                Protocols.AWG, // LUCX-HOOK: AWG — показывать вкладку протокола (обфускация, ключи, скан хоста)
               ] as string[]).includes(protocol) || isFallbackHost
                 ? [{ key: 'protocol', label: t('pages.inbounds.protocol'), children: protocolTab, forceRender: true }]
                 : []),
