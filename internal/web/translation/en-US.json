@@ -715,7 +715,12 @@
         "awgCaptureDomainRequired": "Domain is required",
         "awgCaptureFailed": "Capture failed — host may not support QUIC on 443",
         "awgCaptureDone": "Captured I1-I5 from host",
-        "awgCpsHex": "<b 0xHEX>"
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "Route through Xray",
+        "awgRouteThroughXrayHint": "Send the AWG kernel interface's decrypted packets into Xray's router via an injected TUN inbound, so egress obeys routing rules. Mirrors mtproto's routeThroughXray.",
+        "awgRouteOutbound": "Route outbound",
+        "awgRouteOutboundHint": "Outbound tag the AWG TUN inbound routes to. Pick a configured outbound or balancer; leave empty for direct.",
+        "awgRouteOutboundPlaceholder": "Select outbound tag"
       },
       "info": {
         "mode": "Mode",

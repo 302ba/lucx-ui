@@ -34,7 +34,7 @@ async function generateAwgObfuscationFromBackend(form: ReturnType<typeof Form.us
     region,
     domain: '',
     fullI1I5,
-  });
+  }, { headers: { 'Content-Type': 'application/json' } });
   if (!msg?.success) return null;
   return (msg?.obj ?? null) as Record<string, unknown> | null;
 }
@@ -44,7 +44,7 @@ async function generateAwgObfuscationFromBackend(form: ReturnType<typeof Form.us
 // enters a front host (e.g. google.com); the server sends a QUIC Initial,
 // reads the replies, and returns the packet bytes as CPS strings.
 async function captureHostSignature(domain: string): Promise<Record<string, string> | null> {
-  const msg = await HttpUtil.post('/panel/api/inbounds/awg/captureHost', { domain });
+  const msg = await HttpUtil.post('/panel/api/inbounds/awg/captureHost', { domain }, { headers: { 'Content-Type': 'application/json' } });
   if (!msg?.success) return null;
   return (msg?.obj ?? null) as Record<string, string> | null;
 }

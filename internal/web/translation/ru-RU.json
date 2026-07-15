@@ -715,7 +715,12 @@
         "awgCaptureDomainRequired": "Нужен домен",
         "awgCaptureFailed": "Захват не удался — возможно хост не поддерживает QUIC на 443",
         "awgCaptureDone": "I1-I5 захвачены с хоста",
-        "awgCpsHex": "<b 0xHEX>"
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "Маршрутизировать через Xray",
+        "awgRouteThroughXrayHint": "Направить расшифрованные пакеты AWG-интерфейса в маршрутизатор Xray через инжектируемый TUN-inbound, чтобы исходящий трафик подчинялся правилам маршрутизации. Как у mtproto routeThroughXray.",
+        "awgRouteOutbound": "Исходящий outbound",
+        "awgRouteOutboundHint": "Тег outbound, куда маршрутизируется AWG TUN-inbound. Выберите настроенный outbound или balancer; пусто = direct.",
+        "awgRouteOutboundPlaceholder": "Выберите тег outbound"
       },
       "info": {
         "mode": "Режим",
