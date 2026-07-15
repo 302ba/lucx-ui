@@ -270,8 +270,8 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **Релиз v3.5.0-lucx.4** (latest) — все 3 фазы работают.
 
 ## Релизы
-- v3.5.0-lucx.10 (latest) — вкладка протокола для AWG ✅
-- v3.5.0-lucx.9 (устарел, удалён) — фикс проверки обновлений
+- v3.5.0-lucx.11 (latest) — фикс Content-Type JSON + i18n route ✅
+- v3.5.0-lucx.10 (устарел, удалён) — вкладка протокола для AWG
 - v3.5.0-lucx.3 (устарел, удалён) — фикс onlyI1
 - v3.5.0-lucx.2 (устарел, удалён) — Фазы 1-3 (баг onlyI1)
 - v3.5.0-lucx.1 (устарел, удалён) — Фаза 1
@@ -377,6 +377,16 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **lucxVersion** → `lucx.10`. Релиз v3.5.0-lucx.10 (latest). VPS обновлён.
 
 **Важно:** после установки — hard refresh браузера (Ctrl+Shift+R), т.к. frontend embed-ится в бинарник и браузер кеширует старую JS-сборку.
+
+## Фикс: Content-Type JSON + i18n route-ключи (2026-07-15, v3.5.0-lucx.11)
+
+**П1 (блокирующий): генерация обфускации/захват домена падали** с ошибкой `invalid character 'o' looking for beginning of value` (или `'d'`). Причина: `HttpUtil.post` для `generateObfuscation`/`captureHost` не передавал `Content-Type: application/json` → `http-init.ts` отправлял form-urlencoded (`encodeForm`) вместо JSON → `gin.ShouldBindJSON` получал `obfProfile=standard&...` как JSON → ошибка. Фикс: оба вызова теперь передают `{ headers: { 'Content-Type': 'application/json' } }` — как все JSON POST в проекте (useClients, useNodeMutations и т.д.).
+
+**П3: i18n route-ключи** — добавлены 5 ключей (`awgRouteThroughXray`, `awgRouteThroughXrayHint`, `awgRouteOutbound`, `awgRouteOutboundHint`, `awgRouteOutboundPlaceholder`) в `en-US.json` и `ru-RU.json`. Ранее `t()` возвращал путь ключа как fallback.
+
+**П4: H1-H4 одиночные числа** (384165 вместо диапазонов `lo-hi`) — потому что обфускация генерировалась старой Math.random заглушкой в `createDefaultAwgInboundSettings`, а не через backend API. После П1 (генерация работает) backend `GenerateAWGParams` отдаёт диапазоны (4 непересекающихся квадранта). `# -1` remark при пустом remark inbound'а — совпадает с WireGuard-паттерном.
+
+**lucxVersion** → `lucx.11`. Релиз v3.5.0-lucx.11 (latest). VPS обновлён.
 
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
