@@ -270,9 +270,8 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **Релиз v3.5.0-lucx.4** (latest) — все 3 фазы работают.
 
 ## Релизы
-- v3.5.0-lucx.7 (latest) — QR и скачивание .conf для AWG-клиентов ✅
-- v3.5.0-lucx.6 (устарел, удалён) — форма: выбор профиля обфускации
-- v3.5.0-lucx.5 (устарел, удалён) — e2e фикс Address
+- v3.5.0-lucx.8 (latest) — обновление с нашего репо, версия LucX, добавить клиента ✅
+- v3.5.0-lucx.7 (устарел, удалён) — QR и скачивание .conf
 - v3.5.0-lucx.3 (устарел, удалён) — фикс onlyI1
 - v3.5.0-lucx.2 (устарел, удалён) — Фазы 1-3 (баг onlyI1)
 - v3.5.0-lucx.1 (устарел, удалён) — Фаза 1
@@ -331,6 +330,18 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 - `awgObfuscation`: полный блок Jc/Jmin/Jmax/S1-S4/H1-H4 ✅
 
 Теперь AWG-клиент в UI показывает QR и кнопку скачивания полного .conf с обфускацией, как WireGuard.
+
+## Исправления по отзыву пользователя (2026-07-15, v3.5.0-lucx.8)
+
+**П1: обновление с нашего репо.** `x-ui.sh` + `update.sh` — все ссылки `MHSanaei/3x-ui` заменены на `AlexeyLCP/lucx-ui` (5+7 ссылок). Команды `install`/`update`/`update_dev`/`update_menu` теперь качают с нашего форка, не с апстрима. Проверено на VPS: `x-ui.sh` — 0 ссылок MHSanaei, 5 AlexeyLCP.
+
+**П2: версия LucX на дашборде.** `internal/config/config.go`: константа `lucxVersion = "lucx.8"`, `GetBaseVersion()` и `GetPanelVersion()` прибавляют суффикс (`3.5.0` → `3.5.0-lucx.8`, dev → `lucx.8+dev+<commit>`). Frontend: `window.X_UI_CUR_VER` (из `dist.go`) = `GetPanelVersion()` → отображается в `AppSidebar` (бейдж версии) и `IndexPage` (дашборд). Проверено: логи `Starting x-ui 3.5.0-lucx.8`. Тест `TestGetPanelVersion` обновлён.
+
+**П3: пресеты обфускации/захват домена в форме AWG.** Уже в коде (`awg.tsx`): `obfLevel` (Lite/Standard/Pro), `mimicryProfile` (TLS/QUIC/DNS/SIP), `region` (RU/World), кнопка генерации, скан хоста. Если пользователь не видит — frontend-кэш браузера, нужен hard refresh (Ctrl+Shift+R).
+
+**П4: добавить пользователя для AWG.** `isInboundMultiUser` (`helpers.ts`) += `case 'awg'` (multi-client как WireGuard); `MULTI_CLIENT_PROTOCOLS` (`ClientBulkAddModal.tsx`) += `'awg'`. Теперь действия клиентов (добавить/QR/инфо) показываются для AWG-inbound.
+
+**Проверено на VPS (v3.5.0-lucx.8):** `install.sh` → `v3.5.0-lucx.8`, логи `Starting x-ui 3.5.0-lucx.8`, `x-ui.sh` обновлён (0 MHSanaei).
 
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
