@@ -270,8 +270,8 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **Релиз v3.5.0-lucx.4** (latest) — все 3 фазы работают.
 
 ## Релизы
-- v3.5.0-lucx.8 (latest) — обновление с нашего репо, версия LucX, добавить клиента ✅
-- v3.5.0-lucx.7 (устарел, удалён) — QR и скачивание .conf
+- v3.5.0-lucx.9 (latest) — фикс проверки обновлений ✅
+- v3.5.0-lucx.8 (устарел, удалён) — обновление с нашего репо, версия LucX, добавить клиента
 - v3.5.0-lucx.3 (устарел, удалён) — фикс onlyI1
 - v3.5.0-lucx.2 (устарел, удалён) — Фазы 1-3 (баг onlyI1)
 - v3.5.0-lucx.1 (устарел, удалён) — Фаза 1
@@ -342,6 +342,25 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **П4: добавить пользователя для AWG.** `isInboundMultiUser` (`helpers.ts`) += `case 'awg'` (multi-client как WireGuard); `MULTI_CLIENT_PROTOCOLS` (`ClientBulkAddModal.tsx`) += `'awg'`. Теперь действия клиентов (добавить/QR/инфо) показываются для AWG-inbound.
 
 **Проверено на VPS (v3.5.0-lucx.8):** `install.sh` → `v3.5.0-lucx.8`, логи `Starting x-ui 3.5.0-lucx.8`, `x-ui.sh` обновлён (0 MHSanaei).
+
+## Фикс: проверка обновлений с нашего репо + lucx-сравнение (2026-07-15, v3.5.0-lucx.9)
+
+**Симптом:** панель предлагала «обновиться до 3.5.0», хотя стояла `3.5.0-lucx.8`.
+
+**Рут-коза 1 (URL апстрима):** `panel.go` — `panelUpdaterURL` и `fetchPanelRelease` ссылались на `MHSanaei/3x-ui` (releases/latest = `v3.5.0` без lucx). Заменено на `AlexeyLCP/lucx-ui` (3 ссылки).
+
+**Рут-коза 2 (суффикс ломает парсер):** `parseVersionParts("3.5.0-lucx.8")` → `split(".")` = `["3","5","0-lucx","8"]` → `Atoi("0-lucx")` ошибка → `ok=false` → fallback `normalizeVersionTag(latest) != normalizeVersionTag(current)` → `true` → "update available".
+
+**Фикс:**
+- `parseVersionParts`: отрезает `-lucx.N` перед парсингом base (сравнение по upstream-базе)
+- `lucxMinor(version)`: извлекает число после `-lucx.` (8 из `3.5.0-lucx.8`), `-1` для plain upstream
+- `isNewerVersion`: при равном base сравнивает `lucxMinor` (lucx.9 > lucx.8 → true; plain upstream = -1 → старее fork → false)
+
+**Тесты:** `TestIsNewerVersion` += 5 lucx-кейсов (newer/same/older/plain/newer-base), все PASS.
+
+**lucxVersion** обновлён до `lucx.9`. Релиз v3.5.0-lucx.9 (latest).
+
+**Проверено:** VPS — `install.sh` → `v3.5.0-lucx.9`, логи `Starting x-ui 3.5.0-lucx.9`.
 
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
