@@ -110,7 +110,7 @@ export default function QrPanel({
           </Tooltip>
         )}
       </div>
-      {showQr && (
+      {showQr && value.length <= 2000 && (
         <div
           ref={qrRef}
           className="qr-panel-canvas"
@@ -131,6 +131,11 @@ export default function QrPanel({
               bgColor="#ffffff"
             />
           </Tooltip>
+        </div>
+      )}
+      {showQr && value.length > 2000 && (
+        <div className="qr-panel-canvas" style={{ padding: 16, textAlign: 'center', color: 'var(--ant-color-text-tertiary)' }}>
+          {t('qrTooLarge')}
         </div>
       )}
     </div>

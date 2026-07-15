@@ -15,7 +15,7 @@ export const AwgInboundSettingsSchema = z.object({
   dns: z.string().optional(),
   // Obfuscation level: 1 = none, 2 = Jc/Jmin/Jmax + S/H, 3 = full + CPS I1-I5.
   obfLevel: z.number().int().min(1).max(3).default(2),
-  mimicryProfile: z.enum(['quic', 'sip', 'dns']).default('quic'),
+  mimicryProfile: z.enum(['tls', 'quic', 'sip', 'dns']).default('quic'),
   region: z.string().default('ru'),
   // AmneziaWG junk/transport obfuscation.
   jc: z.number().int().min(0).default(0),

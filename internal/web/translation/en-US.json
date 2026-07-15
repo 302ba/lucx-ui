@@ -2248,5 +2248,6 @@
     "statusFailed": "FAILED",
     "statusDown": "DOWN",
     "statusUp": "UP"
-  }
+  },
+  "qrTooLarge": "QR too large for display — use download or copy"
 }
