@@ -24,6 +24,12 @@ func TestIsNewerVersion(t *testing.T) {
 		{"v2.9.3", "2.9.3", false},
 		{"v2.9.2", "2.9.3", false},
 		{"v3.0.0", "2.9.3", true},
+		// LUCX-HOOK: fork suffix comparison. Same upstream base → compare lucx minor.
+		{"v3.5.0-lucx.9", "3.5.0-lucx.8", true},  // newer fork release
+		{"v3.5.0-lucx.8", "3.5.0-lucx.8", false}, // same fork release
+		{"v3.5.0-lucx.7", "3.5.0-lucx.8", false}, // older fork release
+		{"v3.5.0", "3.5.0-lucx.8", false},       // plain upstream is older than fork
+		{"v3.6.0-lucx.1", "3.5.0-lucx.8", true}, // newer upstream base
 	}
 
 	for _, tc := range cases {

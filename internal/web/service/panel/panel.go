@@ -40,7 +40,7 @@ type PanelUpdateInfo struct {
 }
 
 const (
-	panelUpdaterURL      = "https://raw.githubusercontent.com/MHSanaei/3x-ui/main/update.sh"
+	panelUpdaterURL      = "https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/main/update.sh"
 	maxPanelUpdaterBytes = 2 << 20
 	// devReleaseTag is the fixed-tag rolling pre-release the CI force-moves to the
 	// newest main commit; the dev update channel installs from it.
@@ -413,9 +413,9 @@ func fetchLatestPanelVersion() (string, error) {
 // fetchPanelRelease fetches a release from GitHub. An empty tag resolves the
 // latest stable release; a non-empty tag (e.g. dev-latest) resolves that tag.
 func fetchPanelRelease(tag string) (*service.Release, error) {
-	url := "https://api.github.com/repos/MHSanaei/3x-ui/releases/latest"
+	url := "https://api.github.com/repos/AlexeyLCP/lucx-ui/releases/latest"
 	if tag != "" {
-		url = "https://api.github.com/repos/MHSanaei/3x-ui/releases/tags/" + tag
+		url = "https://api.github.com/repos/AlexeyLCP/lucx-ui/releases/tags/" + tag
 	}
 	client := (&service.SettingService{}).NewProxiedHTTPClient(10 * time.Second)
 	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
@@ -509,7 +509,17 @@ func isNewerVersion(latest string, current string) bool {
 	if !ok {
 		return normalizeVersionTag(latest) != normalizeVersionTag(current)
 	}
-	return cmp > 0
+	if cmp > 0 {
+		return true
+	}
+	// LUCX-HOOK: upstream bases are equal — decide on the LucX fork minor
+	// (lucx.9 vs lucx.8). A plain upstream tag (no -lucx suffix) is treated as
+	// older than any fork release (minor -1), so running a fork never shows
+	// "update available" just because the upstream re-tagged the same base.
+	if cmp == 0 {
+		return lucxMinor(latest) > lucxMinor(current)
+	}
+	return false
 }
 
 func compareVersionStrings(a string, b string) (int, bool) {
@@ -531,7 +541,15 @@ func compareVersionStrings(a string, b string) (int, bool) {
 
 func parseVersionParts(version string) ([3]int, bool) {
 	var result [3]int
-	parts := strings.Split(normalizeVersionTag(version), ".")
+	// LUCX-HOOK: strip the LucX fork suffix (e.g. "-lucx.8") for the 3-part
+	// base comparison. The lucx-minor (the ".8" after the dash) is compared
+	// separately in isNewerVersion so a newer fork release (lucx.9 vs lucx.8)
+	// is detected even when the upstream base is identical (3.5.0).
+	v := normalizeVersionTag(version)
+	if i := strings.Index(v, "-"); i >= 0 {
+		v = v[:i]
+	}
+	parts := strings.Split(v, ".")
 	if len(parts) != 3 {
 		return result, false
 	}
@@ -543,6 +561,28 @@ func parseVersionParts(version string) ([3]int, bool) {
 		result[i] = n
 	}
 	return result, true
+}
+
+// lucxMinor extracts the numeric minor after the "-lucx." suffix (e.g.
+// "3.5.0-lucx.8" → 8). Returns -1 when the version has no LucX suffix, so a
+// plain upstream "3.5.0" compares as older than any "-lucx.N".
+//
+// LUCX-HOOK: fork-version minor comparison.
+func lucxMinor(version string) int {
+	v := normalizeVersionTag(version)
+	idx := strings.Index(v, "-lucx.")
+	if idx < 0 {
+		return -1
+	}
+	rest := v[idx+len("-lucx."):]
+	n := 0
+	for _, ch := range rest {
+		if ch < '0' || ch > '9' {
+			break
+		}
+		n = n*10 + int(ch-'0')
+	}
+	return n
 }
 
 func normalizeVersionTag(version string) string {
