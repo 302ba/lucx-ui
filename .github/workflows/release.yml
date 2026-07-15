@@ -103,6 +103,8 @@ jobs:
           cp x-ui.sh x-ui/
           mv x-ui/xui-release x-ui/x-ui
           mkdir x-ui/bin
+          # LUCX-HOOK: AWG — DKMS install script for the amneziawg kernel module.
+          cp bin/install-awg-module.sh x-ui/bin/ || true
           cd x-ui/bin
 
           # Download dependencies
