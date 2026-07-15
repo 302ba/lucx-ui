@@ -25,7 +25,7 @@ func TestInstanceFromInbound(t *testing.T) {
 			`"jc":8,"jmin":70,"jmax":200,"s1":30,"s2":60,"s3":20,"s4":10,` +
 			`"h1":"100000-500000","h2":"600000-900000",` +
 			`"h3":"1000000-1500000","h4":"1600000-2000000",` +
-			`"i1":"aa","i2":"bb","i3":"cc","i4":"dd","i5":"ee",` +
+			`"i1":"<b 0xaa>","i2":"<b 0xbb>","i3":"<b 0xcc>","i4":"<b 0xdd>","i5":"<b 0xee>",` +
 			`"routeThroughXray":true,"outboundTag":"warp",` +
 			`"clients":[{"id":"peer-pub-1","password":"psk-1","enable":true},` +
 			`{"id":"peer-pub-2","password":"psk-2","enable":false},` +
@@ -53,7 +53,7 @@ func TestInstanceFromInbound(t *testing.T) {
 	if inst.H1 != "100000-500000" || inst.H4 != "1600000-2000000" {
 		t.Fatalf("h1/h4 not parsed: %+v", inst)
 	}
-	if inst.I1 != "aa" || inst.I5 != "ee" {
+	if inst.I1 != "<b 0xaa>" || inst.I5 != "<b 0xee>" {
 		t.Fatalf("i1-i5 not parsed: %+v", inst)
 	}
 	if !inst.RouteThroughXray || inst.OutboundTag != "warp" {
@@ -146,7 +146,7 @@ func TestRenderServerConf_IncludesObfuscationAndPeers(t *testing.T) {
 		MTU: 1320, DNS: "1.1.1.1",
 		Jc: 8, Jmin: 70, Jmax: 200, S1: 30, S2: 60, S3: 20, S4: 10,
 		H1: "100000-500000", H2: "600000-900000", H3: "1000000-1500000", H4: "1600000-2000000",
-		I1: "aa", I2: "bb", I3: "cc", I4: "dd", I5: "ee",
+		I1: "<b 0xaa>", I2: "<b 0xbb>", I3: "<b 0xcc>", I4: "<b 0xdd>", I5: "<b 0xee>",
 		Peers: []PeerSpec{{PublicKey: "peer-pub", PSK: "peer-psk", Keepalive: 25, AllowedIPs: "0.0.0.0/0, ::/0"}},
 	}
 	conf := renderServerConf(inst)

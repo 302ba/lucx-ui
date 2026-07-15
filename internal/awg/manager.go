@@ -271,14 +271,18 @@ func renderServerConf(inst Instance) string {
 	fmt.Fprintf(&b, "H2 = %s\n", inst.H2)
 	fmt.Fprintf(&b, "H3 = %s\n", inst.H3)
 	fmt.Fprintf(&b, "H4 = %s\n", inst.H4)
+	// I1-I5 are stored verbatim in the AmneziaWG CPS tag format
+	// ("<b 0xHEX>" for TLS/QUIC/SIP, "<r 2><b 0xHEX>" for DNS) as produced by
+	// the cps/signature generators. Write them as-is — wrapping again would
+	// double the tag (<b 0x<b 0x...>>), which awg setconf rejects.
 	if inst.I1 != "" {
-		fmt.Fprintf(&b, "I1 = <b 0x%s>\n", inst.I1)
-		fmt.Fprintf(&b, "I2 = <b 0x%s>\n", inst.I2)
+		fmt.Fprintf(&b, "I1 = %s\n", inst.I1)
+		fmt.Fprintf(&b, "I2 = %s\n", inst.I2)
 	}
 	if inst.I3 != "" {
-		fmt.Fprintf(&b, "I3 = <b 0x%s>\n", inst.I3)
-		fmt.Fprintf(&b, "I4 = <b 0x%s>\n", inst.I4)
-		fmt.Fprintf(&b, "I5 = <b 0x%s>\n", inst.I5)
+		fmt.Fprintf(&b, "I3 = %s\n", inst.I3)
+		fmt.Fprintf(&b, "I4 = %s\n", inst.I4)
+		fmt.Fprintf(&b, "I5 = %s\n", inst.I5)
 	}
 	for _, p := range inst.Peers {
 		b.WriteString("\n[Peer]\n")

@@ -15,8 +15,8 @@ func TestGetPanelVersion(t *testing.T) {
 	}
 
 	// LUCX-HOOK: dev builds carry the LucX suffix, so the expected form is
-	// "<lucxVersion>+dev+<commit>" (e.g. "lucx.12+dev+1d1128cf").
-	wantDev := "lucx.12+dev+1d1128cf"
+	// "<lucxVersion>+dev+<commit>" (e.g. "lucx.13+dev+1d1128cf").
+	wantDev := "lucx.13+dev+1d1128cf"
 	buildCommit = "1d1128cf"
 	if got := GetPanelVersion(); got != wantDev {
 		t.Fatalf("dev build: GetPanelVersion = %q, want %q", got, wantDev)

@@ -501,7 +501,9 @@ func inboundAwgHints(settings string) (address string, obfuscation string) {
 		{"1", s.I1}, {"2", s.I2}, {"3", s.I3}, {"4", s.I4}, {"5", s.I5},
 	} {
 		if ip.val != "" {
-			fmt.Fprintf(&out, "I%s = <b 0x%s>\n", ip.idx, ip.val)
+			// I1-I5 are stored verbatim in CPS tag format ("<b 0xHEX>" or
+			// "<r 2><b 0xHEX>") — write as-is, no double wrapping.
+			fmt.Fprintf(&out, "I%s = %s\n", ip.idx, ip.val)
 		}
 	}
 	return s.Address, out.String()

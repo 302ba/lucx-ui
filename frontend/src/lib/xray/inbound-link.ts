@@ -1400,11 +1400,13 @@ export function genAwgConfig(input: GenAwgLinkInput): string {
   if (settings.h2) txt += `H2 = ${settings.h2}\n`;
   if (settings.h3) txt += `H3 = ${settings.h3}\n`;
   if (settings.h4) txt += `H4 = ${settings.h4}\n`;
-  if (settings.i1) txt += `I1 = <b 0x${settings.i1}>\n`;
-  if (settings.i2) txt += `I2 = <b 0x${settings.i2}>\n`;
-  if (settings.i3) txt += `I3 = <b 0x${settings.i3}>\n`;
-  if (settings.i4) txt += `I4 = <b 0x${settings.i4}>\n`;
-  if (settings.i5) txt += `I5 = <b 0x${settings.i5}>\n`;
+  // I1-I5 are stored verbatim in CPS tag format ("<b 0xHEX>" or "<r 2><b 0xHEX>")
+  // — write as-is, no double wrapping.
+  if (settings.i1) txt += `I1 = ${settings.i1}\n`;
+  if (settings.i2) txt += `I2 = ${settings.i2}\n`;
+  if (settings.i3) txt += `I3 = ${settings.i3}\n`;
+  if (settings.i4) txt += `I4 = ${settings.i4}\n`;
+  if (settings.i5) txt += `I5 = ${settings.i5}\n`;
 
   txt += `\n# ${remark}\n`;
   txt += `[Peer]\n`;
