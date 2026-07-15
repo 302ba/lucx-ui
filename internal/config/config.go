@@ -20,6 +20,11 @@ var version string
 //go:embed name
 var name string
 
+// LUCX-HOOK: LucX-UI fork version suffix appended to the upstream base version
+// so the dashboard advertises our build (e.g. "3.5.0-lucx.7") instead of the
+// bare upstream "3.5.0". Bump this with each LucX release.
+const lucxVersion = "lucx.8"
+
 // buildCommit and buildDate are injected at build time via `-ldflags -X` for
 // CI per-commit (dev channel) builds; see .github/workflows/release.yml. They
 // stay empty for a plain `go build` and for stable tagged releases, which is how
@@ -42,11 +47,16 @@ const (
 )
 
 // GetBaseVersion returns the raw embedded release version of the 3x-ui panel
-// (e.g. "3.4.0"). This is the panel's own version, not the Xray version. For the
-// version a panel advertises/displays (which adds a "dev+<sha>" label on dev
-// builds), use GetPanelVersion.
+// with the LucX fork suffix (e.g. "3.5.0-lucx.8"). This is the panel's own
+// version, not the Xray version. For the version a panel advertises/displays
+// (which adds a "dev+<sha>" label on dev builds), use GetPanelVersion.
 func GetBaseVersion() string {
-	return strings.TrimSpace(version)
+	base := strings.TrimSpace(version)
+	// LUCX-HOOK: append the LucX fork suffix so the dashboard shows our build.
+	if lucxVersion != "" {
+		base = base + "-" + lucxVersion
+	}
+	return base
 }
 
 // GetName returns the name of the 3x-ui application.
@@ -83,6 +93,11 @@ func GetPanelVersion() string {
 	commit := GetBuildCommit()
 	if len(commit) > 8 {
 		commit = commit[:8]
+	}
+	// LUCX-HOOK: tag dev builds with the LucX suffix too so a dev build of the
+	// fork is distinguishable from an upstream dev build.
+	if lucxVersion != "" {
+		return lucxVersion + "+dev+" + commit
 	}
 	return "dev+" + commit
 }
