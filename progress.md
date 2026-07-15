@@ -270,8 +270,8 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **Релиз v3.5.0-lucx.4** (latest) — все 3 фазы работают.
 
 ## Релизы
-- v3.5.0-lucx.9 (latest) — фикс проверки обновлений ✅
-- v3.5.0-lucx.8 (устарел, удалён) — обновление с нашего репо, версия LucX, добавить клиента
+- v3.5.0-lucx.10 (latest) — вкладка протокола для AWG ✅
+- v3.5.0-lucx.9 (устарел, удалён) — фикс проверки обновлений
 - v3.5.0-lucx.3 (устарел, удалён) — фикс onlyI1
 - v3.5.0-lucx.2 (устарел, удалён) — Фазы 1-3 (баг onlyI1)
 - v3.5.0-lucx.1 (устарел, удалён) — Фаза 1
@@ -361,6 +361,22 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 **lucxVersion** обновлён до `lucx.9`. Релиз v3.5.0-lucx.9 (latest).
 
 **Проверено:** VPS — `install.sh` → `v3.5.0-lucx.9`, логи `Starting x-ui 3.5.0-lucx.9`.
+
+## Фикс: вкладка протокола для AWG (2026-07-15, v3.5.0-lucx.10)
+
+**Симптом:** при создании AWG-inbound пользователь видел только вкладки «основное/сниффинг/расширенный шаблон» — без полей обфускации, ключей, скана хоста, QR.
+
+**Рут-коза:** вкладка «протокол» (где рендерится `AwgFields`) показывалась только для протоколов из списка `[VLESS, SHADOWSOCKS, HTTP, MIXED, TUNNEL, TUN, WIREGUARD, MTPROTO]` (`InboundFormModal.tsx:950`) — **`AWG` отсутствовал в списке**. Хотя `AwgFields` был подключён (`protocol === Protocols.AWG && <AwgFields />`), вся вкладка «протокол» не создавалась для AWG.
+
+**Фикс:**
+- `InboundFormModal.tsx`: `Protocols.AWG` добавлен в список протоколов с вкладкой «протокол»
+- `protocol-capabilities.ts` `canEnableSniffing`: AWG исключён (kernel sidecar — трафик не через Xray inbound, сниффинг не применяется, как mtproto)
+
+Теперь при создании AWG-inbound есть вкладка «протокол» с: ключи сервера, профиль обфускации (Lite/Standard/Pro), мимикрия (TLS/QUIC/DNS/SIP), регион (RU/World), кнопка генерации, скан хоста, routeThroughXray.
+
+**lucxVersion** → `lucx.10`. Релиз v3.5.0-lucx.10 (latest). VPS обновлён.
+
+**Важно:** после установки — hard refresh браузера (Ctrl+Shift+R), т.к. frontend embed-ится в бинарник и браузер кеширует старую JS-сборку.
 
 **Обновления upstream теперь:** ручной перенос ~20 файлов вместо 29.
 
