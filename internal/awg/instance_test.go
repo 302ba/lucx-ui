@@ -159,7 +159,8 @@ func TestRenderServerConf_IncludesObfuscationAndPeers(t *testing.T) {
 		"Jc = 8", "Jmin = 70", "Jmax = 200",
 		"S1 = 30", "S2 = 60", "S3 = 20", "S4 = 10",
 		"H1 = 100000-500000", "H4 = 1600000-2000000",
-		"I1 = <b 0xaa>", "I5 = <b 0xee>",
+		// I1-I5 are client-only — NOT in the server .conf (kernel module
+		// rejects CPS tags in setconf). Server conf has Jc/S/H only.
 		"[Peer]",
 		"PublicKey = peer-pub",
 		"PresharedKey = peer-psk",
