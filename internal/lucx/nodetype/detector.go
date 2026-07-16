@@ -16,19 +16,19 @@ import (
 
 // NodeInfo holds the result of node type detection.
 type NodeInfo struct {
-	NodeType        string   `json:"nodeType"`
-	Features        []string `json:"features"`
-	AWGVersion      string   `json:"awgVersion"`
-	MTProtoVersion  string   `json:"mtprotoVersion"`
+	NodeType       string   `json:"nodeType"`
+	Features       []string `json:"features"`
+	AWGVersion     string   `json:"awgVersion"`
+	MTProtoVersion string   `json:"mtprotoVersion"`
 }
 
 type lucxHelloResponse struct {
 	Success bool `json:"success"`
 	Obj     struct {
-		Version       string   `json:"version"`
-		Features      []string `json:"features"`
-		AWGVersion    string   `json:"awgVersion"`
-		MTProtoVersion string `json:"mtprotoVersion"`
+		Version        string   `json:"version"`
+		Features       []string `json:"features"`
+		AWGVersion     string   `json:"awgVersion"`
+		MTProtoVersion string   `json:"mtprotoVersion"`
 	} `json:"obj"`
 }
 
