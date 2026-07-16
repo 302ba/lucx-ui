@@ -424,17 +424,26 @@ func TestInjectAwgEgress_WithOutbound(t *testing.T) {
 	}
 }
 
-func TestInjectAwgEgress_NoOutboundLeavesRouting(t *testing.T) {
+func TestInjectAwgEgress_NoOutboundDefaultsToDirect(t *testing.T) {
 	cfg := egressTestConfig()
-	before := string(cfg.RouterConfig)
 	injectAwgEgress(cfg, awgInbound("inbound-awg-1",
 		`{"routeThroughXray":true,"mtu":1320}`))
 
 	if len(cfg.InboundConfigs) != 2 {
 		t.Fatalf("TUN inbound must still be appended without an outbound, got %d inbounds", len(cfg.InboundConfigs))
 	}
-	if string(cfg.RouterConfig) != before {
-		t.Fatal("routing must be untouched when no outboundTag is set")
+	var r egressRouting
+	if err := json.Unmarshal(cfg.RouterConfig, &r); err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Rules) != 2 {
+		t.Fatalf("expected 2 rules (awg→direct + original api), got %d", len(r.Rules))
+	}
+	if r.Rules[0].OutboundTag != "direct" {
+		t.Errorf("expected outboundTag 'direct' fallback when outboundTag is empty, got %q", r.Rules[0].OutboundTag)
+	}
+	if len(r.Rules[0].InboundTag) != 1 || r.Rules[0].InboundTag[0] != "inbound-awg-1" {
+		t.Errorf("rule must target the awg inbound tag, got %v", r.Rules[0].InboundTag)
 	}
 }
 
