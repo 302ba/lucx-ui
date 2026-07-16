@@ -263,26 +263,58 @@ func clientSubnet(address string) string {
 }
 
 // natPostUpPostDown builds the PostUp/PostDown pair that wires kernel routing
-// for an AWG interface when it is NOT routed through Xray. Without these rules
-// the kernel forwards decrypted client packets with their private source
-// (e.g. 10.8.0.x) unchanged, so replies never come back: ip_forward is off by
-// default and no MASQUERADE exists. This mirrors the standard WireGuard /
-// pumbaX awg-multi-script setup. When routeThroughXray is set, Xray owns the
-// routing via an injected TUN inbound, so we skip these rules to avoid double
-// NAT and conflicting iptables state.
+// for an AWG interface.
+//
+// Without routeThroughXray: the kernel forwards decrypted client packets
+// with their private source (e.g. 10.8.0.x) unchanged, so replies never come
+// back: ip_forward is off by default and no MASQUERADE exists. We enable
+// forwarding, add MASQUERADE on the external interface, and accept FORWARD in
+// both directions. This mirrors pumbaX/awg-multi-script.
+//
+// With routeThroughXray: Xray owns the routing via an injected TUN inbound
+// (tunN). But awg-quick up runs BEFORE Xray creates tunN, so we cannot add the
+// route at PostUp time directly. Instead PostUp spawns a background retry-loop
+// (sh -c 'for i in ... do ip route add ... && break; sleep 1; done &') that
+// waits for tunN to appear, then routes the AWG subnet into it. Xray picks the
+// packets off tunN and applies its routing rules. No MASQUERADE here — Xray
+// handles outbound NAT via its own freedom/direct outbound. PostDown removes
+// the route (best-effort, tunN may already be gone).
 func natPostUpPostDown(inst Instance) (postUp, postDown string) {
-	if inst.RouteThroughXray {
-		return "", ""
-	}
 	subnet := clientSubnet(inst.Address)
 	if subnet == "" {
 		return "", ""
 	}
+	iface := inst.Ifname
+	tunName := fmt.Sprintf("tun%d", inst.Id)
+
+	if inst.RouteThroughXray {
+		postUp = fmt.Sprintf(
+			"echo 1 > /proc/sys/net/ipv4/ip_forward; "+
+				"iptables -C FORWARD -i %s -j ACCEPT 2>/dev/null || "+
+				"iptables -A FORWARD -i %s -j ACCEPT; "+
+				"iptables -C FORWARD -o %s -j ACCEPT 2>/dev/null || "+
+				"iptables -A FORWARD -o %s -j ACCEPT; "+
+				"sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do "+
+				"ip link show %s >/dev/null 2>&1 && "+
+				"ip route replace %s dev %s 2>/dev/null && break; "+
+				"sleep 1; done' &",
+			iface, iface, iface, iface,
+			tunName, subnet, tunName,
+		)
+		postDown = fmt.Sprintf(
+			"ip route del %s dev %s 2>/dev/null || true; "+
+				"iptables -D FORWARD -i %s -j ACCEPT 2>/dev/null || true; "+
+				"iptables -D FORWARD -o %s -j ACCEPT 2>/dev/null || true",
+			subnet, tunName,
+			iface, iface,
+		)
+		return postUp, postDown
+	}
+
 	extIface := defaultRouteInterface()
 	if extIface == "" {
 		return "", ""
 	}
-	iface := inst.Ifname
 	postUp = fmt.Sprintf(
 		"echo 1 > /proc/sys/net/ipv4/ip_forward; "+
 			"iptables -t nat -C POSTROUTING -s %s -o %s -j MASQUERADE 2>/dev/null || "+

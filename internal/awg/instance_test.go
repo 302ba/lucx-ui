@@ -225,17 +225,26 @@ func TestClientSubnet(t *testing.T) {
 	}
 }
 
-func TestRenderServerConf_NoPostUpWhenRoutedThroughXray(t *testing.T) {
+func TestRenderServerConf_RouteThroughXrayHasRouteToTun(t *testing.T) {
 	inst := Instance{
 		Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320,
 		Address: "10.8.0.1/24", RouteThroughXray: true,
 	}
 	conf := renderServerConf(inst)
-	if strings.Contains(conf, "PostUp") {
-		t.Errorf("PostUp must be absent when routeThroughXray is set, got:\n%s", conf)
+	if !strings.Contains(conf, "PostUp") {
+		t.Errorf("PostUp must be present when routeThroughXray is set, got:\n%s", conf)
 	}
-	if strings.Contains(conf, "PostDown") {
-		t.Errorf("PostDown must be absent when routeThroughXray is set, got:\n%s", conf)
+	if !strings.Contains(conf, "tun1") {
+		t.Errorf("PostUp must reference tun1 (Xray TUN inbound), got:\n%s", conf)
+	}
+	if !strings.Contains(conf, "ip route replace") {
+		t.Errorf("PostUp must add ip route to tun, got:\n%s", conf)
+	}
+	if strings.Contains(conf, "MASQUERADE") {
+		t.Errorf("PostUp must NOT contain MASQUERADE when routeThroughXray, got:\n%s", conf)
+	}
+	if !strings.Contains(conf, "ip_forward") {
+		t.Errorf("PostUp must enable ip_forward even with routeThroughXray, got:\n%s", conf)
 	}
 }
 
