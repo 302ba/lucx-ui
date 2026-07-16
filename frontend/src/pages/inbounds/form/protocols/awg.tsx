@@ -24,12 +24,14 @@ function levelToFullI1I5(level: number): boolean {
 async function generateAwgObfuscationFromBackend(getValue: (name: string) => unknown): Promise<Record<string, unknown> | null> {
   const level = (getValue('settings.obfLevel') as number) ?? 2;
   const mimicryProfile = (getValue('settings.mimicryProfile') as string) || 'quic';
+  const browserProfile = (getValue('settings.browserProfile') as string) || 'chrome';
   const region = (getValue('settings.region') as string) || 'world';
   const obfProfile = OBF_PROFILE[level] ?? 'standard';
   const fullI1I5 = levelToFullI1I5(level);
   const msg = await HttpUtil.post('/panel/api/inbounds/awg/generateObfuscation', {
     obfProfile,
     mimicryProfile,
+    browserProfile,
     region,
     domain: '',
     fullI1I5,
@@ -57,6 +59,7 @@ export default function AwgFields() {
   const { setValue, watch } = useFormContext();
   const obfLevel = watch('settings.obfLevel') as number | undefined;
   const routeThroughXray = watch('settings.routeThroughXray') as boolean | undefined;
+  const mimicryProfileVal = watch('settings.mimicryProfile') as string | undefined;
   const { data: outboundTags } = useOutboundTags();
 
   const regenerateKeys = () => {
@@ -142,13 +145,25 @@ export default function AwgFields() {
       <FormField name={['settings', 'mimicryProfile']} label={t('pages.inbounds.form.awgMimicryProfile')} tooltip={t('pages.inbounds.form.awgMimicryProfileHint')}>
         <Select
           options={[
-            { value: 'tls', label: 'TLS (ClientHello, Chrome-like)' },
+            { value: 'tls', label: 'TLS (ClientHello)' },
             { value: 'quic', label: 'QUIC (Initial packet)' },
             { value: 'dns', label: 'DNS (EDNS0 query)' },
             { value: 'sip', label: 'SIP (REGISTER)' },
           ]}
         />
       </FormField>
+
+      {mimicryProfileVal === 'tls' && (
+        <FormField name={['settings', 'browserProfile']} label={t('pages.inbounds.form.awgBrowserProfile')} tooltip={t('pages.inbounds.form.awgBrowserProfileHint')}>
+          <Select
+            options={[
+              { value: 'chrome', label: t('pages.inbounds.form.awgBrowserChrome') },
+              { value: 'firefox', label: t('pages.inbounds.form.awgBrowserFirefox') },
+              { value: 'safari', label: t('pages.inbounds.form.awgBrowserSafari') },
+            ]}
+          />
+        </FormField>
+      )}
 
       <FormField name={['settings', 'region']} label={t('pages.inbounds.form.awgRegion')} tooltip={t('pages.inbounds.form.awgRegionHint')}>
         <Select

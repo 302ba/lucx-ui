@@ -18,9 +18,10 @@ const (
 	RegionWorld Region = "world"
 )
 
-// MimicryProfile picks the packet shape CPS imitates. TLS = a Chrome-like
-// TLS ClientHello; DNS = an EDNS0 query; SIP = a REGISTER; QUIC = a QUIC v1
-// Initial carrying a TLS ClientHello. Ported from pumbaX/awg-multi-script.
+// MimicryProfile picks the packet shape CPS imitates. TLS = a browser
+// ClientHello (Chrome/Firefox/Safari -- see BrowserProfile); DNS = an EDNS0
+// query; SIP = a REGISTER; QUIC = a QUIC v1 Initial carrying a TLS ClientHello.
+// Ported from pumbaX/awg-multi-script.
 type MimicryProfile string
 
 const (
@@ -28,6 +29,20 @@ const (
 	ProfileDNS  MimicryProfile = "dns"
 	ProfileSIP  MimicryProfile = "sip"
 	ProfileQUIC MimicryProfile = "quic"
+)
+
+// BrowserProfile selects which browser's TLS ClientHello fingerprint the TLS
+// mimicry profile reproduces. Chrome uses GREASE, compress_certificate, and
+// ALPS extensions; Firefox uses NSS cipher ordering with padded ClientHello
+// and delegated_credentials; Safari uses Apple's SecureTransport ordering with
+// no GREASE and no padding. Only meaningful for ProfileTLS -- DNS/SIP/QUIC
+// ignore it.
+type BrowserProfile string
+
+const (
+	BrowserChrome  BrowserProfile = "chrome"
+	BrowserFirefox BrowserProfile = "firefox"
+	BrowserSafari  BrowserProfile = "safari"
 )
 
 // ObfProfile is the obfuscation strength preset. Lite = light junk + DNS I1;

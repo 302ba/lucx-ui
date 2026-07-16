@@ -7,6 +7,7 @@
 package cps
 
 import (
+	"encoding/hex"
 	"math/rand"
 	"strings"
 	"testing"
@@ -37,7 +38,7 @@ func TestGenerateCPS_AllProfilesNonEmpty(t *testing.T) {
 	SetRand(rand.New(rand.NewSource(7)))
 	for _, mp := range []MimicryProfile{ProfileTLS, ProfileDNS, ProfileSIP, ProfileQUIC} {
 		for _, reg := range []Region{RegionRU, RegionWorld} {
-			r1, err := GenerateCPS(mp, reg, "", true)
+			r1, err := GenerateCPS(mp, reg, "", BrowserChrome, true)
 			if err != nil {
 				t.Fatalf("profile %s region %s onlyI1: %v", mp, reg, err)
 			}
@@ -47,7 +48,7 @@ func TestGenerateCPS_AllProfilesNonEmpty(t *testing.T) {
 			if r1.I2 != "" {
 				t.Fatalf("profile %s region %s: onlyI1 leaked I2", mp, reg)
 			}
-			r5, err := GenerateCPS(mp, reg, "", false)
+			r5, err := GenerateCPS(mp, reg, "", BrowserChrome, false)
 			if err != nil {
 				t.Fatalf("profile %s region %s full: %v", mp, reg, err)
 			}
@@ -62,7 +63,7 @@ func TestGenerateCPS_AllProfilesNonEmpty(t *testing.T) {
 
 func TestGenerateCPS_ExplicitDomain(t *testing.T) {
 	SetRand(rand.New(rand.NewSource(1)))
-	r, err := GenerateCPS(ProfileTLS, RegionWorld, "example.com", true)
+	r, err := GenerateCPS(ProfileTLS, RegionWorld, "example.com", BrowserChrome, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +74,7 @@ func TestGenerateCPS_ExplicitDomain(t *testing.T) {
 
 func TestGenerateCPS_DNSHasR2Prefix(t *testing.T) {
 	SetRand(rand.New(rand.NewSource(3)))
-	r, err := GenerateCPS(ProfileDNS, RegionWorld, "example.com", true)
+	r, err := GenerateCPS(ProfileDNS, RegionWorld, "example.com", BrowserChrome, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,13 +86,72 @@ func TestGenerateCPS_DNSHasR2Prefix(t *testing.T) {
 func TestGenerateCPS_NonDNSNoR2Prefix(t *testing.T) {
 	SetRand(rand.New(rand.NewSource(5)))
 	for _, mp := range []MimicryProfile{ProfileTLS, ProfileSIP, ProfileQUIC} {
-		r, err := GenerateCPS(mp, RegionWorld, "example.com", true)
+		r, err := GenerateCPS(mp, RegionWorld, "example.com", BrowserChrome, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if strings.HasPrefix(r.I1, "<r 2>") {
 			t.Fatalf("profile %s must not use <r 2> prefix", mp)
 		}
+	}
+}
+
+func TestGenerateCPS_AllBrowsersNonEmpty(t *testing.T) {
+	SetRand(rand.New(rand.NewSource(11)))
+	for _, browser := range []BrowserProfile{BrowserChrome, BrowserFirefox, BrowserSafari} {
+		r, err := GenerateCPS(ProfileTLS, RegionWorld, "example.com", browser, true)
+		if err != nil {
+			t.Fatalf("browser %s: %v", browser, err)
+		}
+		if r.I1 == "" {
+			t.Fatalf("browser %s: I1 empty", browser)
+		}
+		if !strings.HasPrefix(r.I1, "<b 0x") {
+			t.Fatalf("browser %s: I1 must be hex tag, got %q", browser, r.I1[:20])
+		}
+	}
+}
+
+func TestBuildFirefoxHello_NoGrease(t *testing.T) {
+	SetRand(rand.New(rand.NewSource(42)))
+	ch := buildFirefoxHello("example.com")
+	hexStr := hex.EncodeToString(ch)
+	if strings.Contains(hexStr, "0a0a") || strings.Contains(hexStr, "fafa") {
+		t.Errorf("Firefox ClientHello must not contain GREASE values")
+	}
+}
+
+func TestBuildSafariHello_NoGrease(t *testing.T) {
+	SetRand(rand.New(rand.NewSource(42)))
+	ch := buildSafariHello("example.com")
+	hexStr := hex.EncodeToString(ch)
+	if strings.Contains(hexStr, "0a0a") || strings.Contains(hexStr, "fafa") {
+		t.Errorf("Safari ClientHello must not contain GREASE values")
+	}
+}
+
+func TestBuildChromeHello_HasGrease(t *testing.T) {
+	SetRand(rand.New(rand.NewSource(42)))
+	ch := buildChromeHello("example.com")
+	if len(ch) < 100 {
+		t.Fatalf("Chrome ClientHello too short: %d bytes", len(ch))
+	}
+}
+
+func TestBuildFirefoxHello_HasPadding512(t *testing.T) {
+	SetRand(rand.New(rand.NewSource(42)))
+	ch := buildFirefoxHello("example.com")
+	if len(ch) < 200 {
+		t.Fatalf("Firefox ClientHello too short (padding expected): %d bytes", len(ch))
+	}
+}
+
+func TestBuildSafariHello_HasTls11(t *testing.T) {
+	SetRand(rand.New(rand.NewSource(42)))
+	ch := buildSafariHello("example.com")
+	hexStr := hex.EncodeToString(ch)
+	if !strings.Contains(hexStr, "0302") {
+		t.Errorf("Safari ClientHello must advertise TLS 1.1 (0x0302)")
 	}
 }
 

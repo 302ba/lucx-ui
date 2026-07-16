@@ -248,6 +248,7 @@ export function createDefaultAwgInboundSettings(): AwgInboundSettings {
     dns: '1.1.1.1, 1.0.0.1',
     obfLevel: 2,
     mimicryProfile: 'quic',
+    browserProfile: 'chrome',
     region: 'ru',
     jc: r(3, 10),
     jmin: r(50, 100),

@@ -24,21 +24,23 @@ type CPSResult struct {
 
 // GenerateCPS produces 1 or 5 CPS packet strings for the given profile,
 // region, and optional explicit front domain. When onlyI1 is true only I1 is
-// generated (Lite/Standard presets emit just I1; Pro emits I1-I5). Ported
-// from pumbaX/awg-multi-script _CPS_GENERATOR.
-func GenerateCPS(profile MimicryProfile, region Region, domain string, onlyI1 bool) (CPSResult, error) {
+// generated (Lite/Standard presets emit just I1; Pro emits I1-I5). The
+// browser parameter selects which TLS fingerprint to mimic for ProfileTLS
+// (ignored by DNS/SIP/QUIC). Ported from pumbaX/awg-multi-script
+// _CPS_GENERATOR, extended with browser-specific TLS fingerprints.
+func GenerateCPS(profile MimicryProfile, region Region, domain string, browser BrowserProfile, onlyI1 bool) (CPSResult, error) {
 	dom := SelectDomain(profile, region, domain)
 	switch profile {
 	case ProfileTLS:
-		i1 := tlsPacket(dom)
+		i1 := tlsPacket(dom, browser)
 		if onlyI1 {
 			return CPSResult{I1: i1}, nil
 		}
 		pool := DomainPool(ProfileTLS, region)
-		i2 := tlsPacket(pool[rng.Intn(len(pool))])
-		i3 := tlsPacket(pool[rng.Intn(len(pool))])
-		i4 := tlsPacket(pool[rng.Intn(len(pool))])
-		i5 := tlsPacket(pool[rng.Intn(len(pool))])
+		i2 := tlsPacket(pool[rng.Intn(len(pool))], browser)
+		i3 := tlsPacket(pool[rng.Intn(len(pool))], browser)
+		i4 := tlsPacket(pool[rng.Intn(len(pool))], browser)
+		i5 := tlsPacket(pool[rng.Intn(len(pool))], browser)
 		return CPSResult{I1: i1, I2: i2, I3: i3, I4: i4, I5: i5}, nil
 	case ProfileDNS:
 		i1 := dnsPacket(dom)
@@ -141,16 +143,22 @@ func greaseValue() uint16 {
 	return grease[rng.Intn(len(grease))]
 }
 
-// ---- TLS ClientHello (Chrome-shaped) ----
+// ---- TLS ClientHello (browser-shaped) ----
 
-// tlsPacket builds a TLS 1.2 ClientHello record (Chrome-like shape) for the
-// given SNI host and returns it as a "<b 0xHEX>" CPS tag. Ported from
-// pumbaX gen_tls_clienthello: Chrome cipher/extension order, GREASE, SNI,
-// supported_groups, key_share, padding. No fill-to-512 (zero tails are a
-// signature, per pumbaX comment).
-func tlsPacket(host string) string {
-	ch := buildTLSClientHello(host)
-	// Wrap in a TLS record header: type 0x16 (handshake), version 0x0301, length.
+// tlsPacket builds a TLS 1.2 ClientHello record for the given SNI host and
+// returns it as a "<b 0xHEX>" CPS tag. The browser parameter selects which
+// fingerprint to mimic (Chrome, Firefox, or Safari). Ported from pumbaX
+// gen_tls_clienthello, extended with browser-specific profiles.
+func tlsPacket(host string, browser BrowserProfile) string {
+	var ch []byte
+	switch browser {
+	case BrowserFirefox:
+		ch = buildFirefoxHello(host)
+	case BrowserSafari:
+		ch = buildSafariHello(host)
+	default:
+		ch = buildChromeHello(host)
+	}
 	var rec bytes.Buffer
 	rec.WriteByte(0x16)
 	rec.Write([]byte{0x03, 0x01})
@@ -159,23 +167,22 @@ func tlsPacket(host string) string {
 	return hexTag(rec.Bytes())
 }
 
-func buildTLSClientHello(host string) []byte {
-	var hs bytes.Buffer // handshake body (ClientHello)
-	// legacy_version = 0x0303 (TLS 1.2)
+// buildChromeHello builds a Chrome-shaped TLS 1.2 ClientHello handshake body:
+// GREASE cipher group, Chrome extension order, compress_certificate, ALPS,
+// random padding 0..48. Ported from the original pumbaX buildTLSClientHello.
+func buildChromeHello(host string) []byte {
+	var hs bytes.Buffer
 	writeLen16(&hs, 0x0303)
-	// random (32 bytes)
 	hs.Write(randomBytes(32))
-	// session_id (32 bytes + 1-byte length)
 	sid := randomBytes(32)
 	hs.WriteByte(byte(len(sid)))
 	hs.Write(sid)
-	// cipher_suites: GREASE + Chrome set, prefixed by 2-byte length
 	ciphers := []uint16{
 		0x1301, 0x1302, 0x1303, 0xC02B, 0xC02F, 0xC02C, 0xC030,
 		0xCCA9, 0xCCA8, 0xC013, 0xC014, 0x009C, 0x009D, 0x002F, 0x0035,
 	}
 	var cs bytes.Buffer
-	cs.Write([]byte{0x00, 0x00}) // GREASE placeholder
+	cs.Write([]byte{0x00, 0x00})
 	for _, c := range ciphers {
 		writeLen16(&cs, c)
 	}
@@ -184,88 +191,282 @@ func buildTLSClientHello(host string) []byte {
 	cs.Bytes()[1] = byte(grease)
 	writeLen16(&hs, cs.Len())
 	hs.Write(cs.Bytes())
-	// compression_methods: 1 byte length + \x01\x00 (null + deflate-allowed)
 	hs.WriteByte(0x01)
 	hs.WriteByte(0x00)
 
-	// Extensions (Chrome order).
 	var ext bytes.Buffer
-	// grease empty
 	writeLen16(&ext, greaseValue())
 	writeLen16(&ext, 0)
-	// server_name
 	writeServerNameExt(&ext, host)
-	// extended_master_secret (0x0017)
 	writeLen16(&ext, 0x0017)
 	writeLen16(&ext, 0)
-	// renegotiation_info (0xff01)
 	writeLen16(&ext, 0xFF01)
 	writeLen16(&ext, 1)
 	ext.WriteByte(0x00)
-	// supported_groups (0x000a): GREASE + x25519/secp256r1/secp384r1
-	writeSupportedGroupsExt(&ext)
-	// ec_point_formats (0x000b)
+	writeSupportedGroupsExt(&ext, true)
 	writeLen16(&ext, 0x000B)
 	writeLen16(&ext, 2)
 	ext.WriteByte(1)
 	ext.WriteByte(0x00)
-	// session_ticket (0x0023)
 	writeLen16(&ext, 0x0023)
 	writeLen16(&ext, 0)
-	// ALPN (0x0010): h2, http/1.1
 	writeALPNExt(&ext)
-	// OCSP (0x0005)
 	writeLen16(&ext, 0x0005)
 	writeLen16(&ext, 1)
 	ext.WriteByte(0x00)
-	// signature_algorithms (0x000d)
-	writeSigAlgsExt(&ext)
-	// signed_certificate_timestamp (0x0012)
+	writeSigAlgsExt(&ext, chromeSigAlgs)
 	writeLen16(&ext, 0x0012)
 	writeLen16(&ext, 0)
-	// supported_versions (0x002b)
-	writeSupportedVersionsExt(&ext)
-	// key_share (0x0033)
-	writeKeyShareExt(&ext)
-	// psk_key_exchange_modes (0x002d)
+	writeSupportedVersionsExt(&ext, true)
+	writeKeyShareExt(&ext, true)
 	writeLen16(&ext, 0x002D)
 	writeLen16(&ext, 2)
 	ext.WriteByte(1)
 	ext.WriteByte(0x01)
-	// compress_certificate (0x001b): brotli
 	writeLen16(&ext, 0x001B)
 	writeLen16(&ext, 3)
-	ext.WriteByte(0x02) // algorithm id: brotli
+	ext.WriteByte(0x02)
 	writeLen16(&ext, 1)
-	ext.WriteByte(0x02) // brotli algorithm
-	// ALPS (0x4469)
+	ext.WriteByte(0x02)
 	writeLen16(&ext, 0x4469)
 	writeLen16(&ext, 4)
 	writeLen16(&ext, 2)
 	ext.WriteByte(0x68)
-	ext.WriteByte(0x32) // "h2" ALPS
-	// grease2 empty
+	ext.WriteByte(0x32)
 	writeLen16(&ext, greaseValue())
 	writeLen16(&ext, 0)
-	// padding (0x0015) — pad to a random length 0..48 of zero bytes
 	pad := rng.Intn(49)
 	writeLen16(&ext, 0x0015)
 	writeLen16(&ext, pad)
 	for i := 0; i < pad; i++ {
 		ext.WriteByte(0x00)
 	}
-
-	// Write extensions block into the ClientHello.
 	writeLen16(&hs, ext.Len())
 	hs.Write(ext.Bytes())
+	return wrapHandshake(hs.Bytes())
+}
 
-	// Wrap ClientHello in a handshake header: type 0x01, 24-bit length, body.
+// buildFirefoxHello builds a Firefox-shaped TLS 1.2 ClientHello (NSS library,
+// Firefox 120+). Key differences from Chrome: no GREASE anywhere, NSS cipher
+// ordering with older ECDHE CBC suites, delegated_credentials extension,
+// padding to 512-byte boundary, no compress_certificate/ALPS.
+func buildFirefoxHello(host string) []byte {
+	var hs bytes.Buffer
+	writeLen16(&hs, 0x0303)
+	hs.Write(randomBytes(32))
+	sid := randomBytes(32)
+	hs.WriteByte(byte(len(sid)))
+	hs.Write(sid)
+	ciphers := []uint16{
+		0x1301, 0x1302, 0x1303,
+		0xC02B, 0xC02C, 0xC02F, 0xC030,
+		0xCCA9, 0xCCA8,
+		0xC008, 0xC009, 0xC00A,
+		0xC013, 0xC014, 0xC012,
+		0x009C, 0x009D, 0x002F, 0x0035, 0x000A,
+	}
+	var cs bytes.Buffer
+	for _, c := range ciphers {
+		writeLen16(&cs, c)
+	}
+	writeLen16(&hs, cs.Len())
+	hs.Write(cs.Bytes())
+	hs.WriteByte(0x01)
+	hs.WriteByte(0x00)
+
+	var ext bytes.Buffer
+	writeServerNameExt(&ext, host)
+	writeLen16(&ext, 0x0017)
+	writeLen16(&ext, 0)
+	writeLen16(&ext, 0xFF01)
+	writeLen16(&ext, 1)
+	ext.WriteByte(0x00)
+	writeSupportedGroupsExt(&ext, false)
+	writeLen16(&ext, 0x000B)
+	writeLen16(&ext, 2)
+	ext.WriteByte(1)
+	ext.WriteByte(0x00)
+	writeLen16(&ext, 0x0023)
+	writeLen16(&ext, 0)
+	writeALPNExt(&ext)
+	writeLen16(&ext, 0x0005)
+	writeLen16(&ext, 1)
+	ext.WriteByte(0x00)
+	writeKeyShareExt(&ext, false)
+	writeSupportedVersionsExt(&ext, false)
+	writeSigAlgsExt(&ext, firefoxSigAlgs)
+	writeLen16(&ext, 0x0012)
+	writeLen16(&ext, 0)
+	writeDelegatedCredentialsExt(&ext)
+	writeLen16(&ext, 0x002D)
+	writeLen16(&ext, 2)
+	ext.WriteByte(1)
+	ext.WriteByte(0x01)
+	padTo512(&ext, hs.Len())
+	writeLen16(&hs, ext.Len())
+	hs.Write(ext.Bytes())
+	return wrapHandshake(hs.Bytes())
+}
+
+// buildSafariHello builds a Safari-shaped TLS 1.2 ClientHello (Apple
+// SecureTransport, Safari 16). Key differences from Chrome: no GREASE, Apple
+// cipher ordering with legacy DHE/CBC suites, supported_versions includes
+// TLS 1.1, no compress_certificate/ALPS/padding.
+func buildSafariHello(host string) []byte {
+	var hs bytes.Buffer
+	writeLen16(&hs, 0x0303)
+	hs.Write(randomBytes(32))
+	sid := randomBytes(32)
+	hs.WriteByte(byte(len(sid)))
+	hs.Write(sid)
+	ciphers := []uint16{
+		0x1301, 0x1302, 0x1303,
+		0xC02C, 0xC02B, 0xC030, 0xC02F,
+		0xCCA9, 0xCCA8,
+		0xC024, 0xC023, 0xC00A, 0xC009, 0xC008,
+		0xC028, 0xC027,
+		0xC014, 0xC013, 0xC012,
+		0x009D, 0x009C, 0x003D, 0x003C,
+		0x0035, 0x002F, 0x00FF,
+	}
+	var cs bytes.Buffer
+	for _, c := range ciphers {
+		writeLen16(&cs, c)
+	}
+	writeLen16(&hs, cs.Len())
+	hs.Write(cs.Bytes())
+	hs.WriteByte(0x01)
+	hs.WriteByte(0x00)
+
+	var ext bytes.Buffer
+	writeServerNameExt(&ext, host)
+	writeLen16(&ext, 0x000B)
+	writeLen16(&ext, 2)
+	ext.WriteByte(1)
+	ext.WriteByte(0x00)
+	writeLen16(&ext, 0x0017)
+	writeLen16(&ext, 0)
+	writeLen16(&ext, 0xFF01)
+	writeLen16(&ext, 1)
+	ext.WriteByte(0x00)
+	writeSupportedGroupsExtSafari(&ext)
+	writeLen16(&ext, 0x0023)
+	writeLen16(&ext, 0)
+	writeLen16(&ext, 0x0005)
+	writeLen16(&ext, 1)
+	ext.WriteByte(0x00)
+	writeSigAlgsExt(&ext, safariSigAlgs)
+	writeSupportedVersionsExtSafari(&ext)
+	writeLen16(&ext, 0x002D)
+	writeLen16(&ext, 2)
+	ext.WriteByte(1)
+	ext.WriteByte(0x01)
+	writeKeyShareExtSafari(&ext)
+	writeALPNExt(&ext)
+	writeLen16(&ext, 0x0012)
+	writeLen16(&ext, 0)
+	writeLen16(&hs, ext.Len())
+	hs.Write(ext.Bytes())
+	return wrapHandshake(hs.Bytes())
+}
+
+// wrapHandshake wraps a ClientHello body in the handshake header: type 0x01,
+// 24-bit length, body.
+func wrapHandshake(body []byte) []byte {
 	var rec bytes.Buffer
 	rec.WriteByte(0x01)
-	writeUint24BE(&rec, hs.Len())
-	rec.Write(hs.Bytes())
+	writeUint24BE(&rec, len(body))
+	rec.Write(body)
 	return rec.Bytes()
 }
+
+// padTo512 adds a padding extension (0x0015) that pads the total ClientHello
+// (handshake header + body so far + extensions so far) up to the next 512-byte
+// boundary. Firefox pads to 512 to avoid length-based fingerprinting.
+func padTo512(ext *bytes.Buffer, bodyLen int) {
+	const target = 512
+	// Estimate total: 4 (handshake header) + bodyLen + 2 (ext length) + ext.Len() + 4 (padding ext header) + pad
+	current := 4 + bodyLen + 2 + ext.Len() + 4
+	pad := target - (current % target)
+	if pad < 0 {
+		pad += target
+	}
+	if pad > 0xFFFF {
+		pad = 0xFFFF
+	}
+	writeLen16(ext, 0x0015)
+	writeLen16(ext, pad)
+	for i := 0; i < pad; i++ {
+		ext.WriteByte(0x00)
+	}
+}
+
+// writeDelegatedCredentialsExt writes the delegated_credentials extension
+// (0x0022) with a Firefox-compatible signature-algorithm list.
+func writeDelegatedCredentialsExt(b *bytes.Buffer) {
+	algs := []uint16{0x0403, 0x0503, 0x0604, 0x0804, 0x0805, 0x0806, 0x0401, 0x0501, 0x0201}
+	var list bytes.Buffer
+	for _, a := range algs {
+		writeLen16(&list, a)
+	}
+	writeLen16(b, 0x0022)
+	writeLen16(b, list.Len()+2)
+	writeLen16(b, list.Len())
+	b.Write(list.Bytes())
+}
+
+// writeSupportedGroupsExtSafari writes supported_groups with x25519,
+// secp256r1, secp384r1, secp521r1 (Safari adds secp521r1) and no GREASE.
+func writeSupportedGroupsExtSafari(b *bytes.Buffer) {
+	groups := []uint16{0x001D, 0x0017, 0x0018, 0x0019}
+	var list bytes.Buffer
+	for _, g := range groups {
+		writeLen16(&list, g)
+	}
+	writeLen16(b, 0x000A)
+	writeLen16(b, list.Len()+2)
+	writeLen16(b, list.Len())
+	b.Write(list.Bytes())
+}
+
+// writeSupportedVersionsExtSafari writes supported_versions with TLS 1.3,
+// 1.2, and 1.1 (Safari still advertises 0x0302), no GREASE.
+func writeSupportedVersionsExtSafari(b *bytes.Buffer) {
+	var list bytes.Buffer
+	writeLen16(&list, 0x0304)
+	writeLen16(&list, 0x0303)
+	writeLen16(&list, 0x0302)
+	writeLen16(b, 0x002B)
+	writeLen16(b, list.Len()+1)
+	b.WriteByte(byte(list.Len()))
+	b.Write(list.Bytes())
+}
+
+// writeKeyShareExtSafari writes key_share with x25519 and secp256r1 (Safari
+// sends both), no GREASE.
+func writeKeyShareExtSafari(b *bytes.Buffer) {
+	var ks bytes.Buffer
+	writeLen16(&ks, 0x001D)
+	writeLen16(&ks, 32)
+	ks.Write(randomBytes(32))
+	writeLen16(&ks, 0x0017)
+	writeLen16(&ks, 65) // secp256r1 uncompressed point: 1 prefix + 32x + 32y
+	ks.WriteByte(0x04)
+	ks.Write(randomBytes(64))
+	writeLen16(b, 0x0033)
+	writeLen16(b, ks.Len()+2)
+	writeLen16(b, ks.Len())
+	b.Write(ks.Bytes())
+}
+
+// Signature-algorithm lists per browser. Chrome uses a trimmed list; Firefox
+// uses the NSS ordering (eCDSSA-P256-SHA256 first); Safari uses Apple's
+// ordering with SHA1 fallbacks.
+var (
+	chromeSigAlgs  = []uint16{0x0403, 0x0804, 0x0401, 0x0203, 0x0201, 0x0804, 0x0805, 0x0806, 0x0201}
+	firefoxSigAlgs = []uint16{0x0403, 0x0503, 0x0604, 0x0804, 0x0805, 0x0806, 0x0401, 0x0501, 0x0201, 0x0203}
+	safariSigAlgs  = []uint16{0x0403, 0x0804, 0x0401, 0x0503, 0x0805, 0x0501, 0x0806, 0x0601, 0x0201}
+)
 
 func writeServerNameExt(b *bytes.Buffer, host string) {
 	// server_name extension: type 0x0000, server_name list, host_name.
@@ -282,10 +483,12 @@ func writeServerNameExt(b *bytes.Buffer, host string) {
 	b.Write(list.Bytes())
 }
 
-func writeSupportedGroupsExt(b *bytes.Buffer) {
+func writeSupportedGroupsExt(b *bytes.Buffer, grease bool) {
 	groups := []uint16{0x001D, 0x0017, 0x0018} // x25519, secp256r1, secp384r1
 	var list bytes.Buffer
-	writeLen16(&list, greaseValue())
+	if grease {
+		writeLen16(&list, greaseValue())
+	}
 	for _, g := range groups {
 		writeLen16(&list, g)
 	}
@@ -308,9 +511,7 @@ func writeALPNExt(b *bytes.Buffer) {
 	b.Write(protos.Bytes())
 }
 
-func writeSigAlgsExt(b *bytes.Buffer) {
-	// A trimmed Chrome signature-algorithm list.
-	algs := []uint16{0x0403, 0x0804, 0x0401, 0x0203, 0x0201, 0x0804, 0x0805, 0x0806, 0x0201}
+func writeSigAlgsExt(b *bytes.Buffer, algs []uint16) {
 	var list bytes.Buffer
 	for _, a := range algs {
 		writeLen16(&list, a)
@@ -321,10 +522,11 @@ func writeSigAlgsExt(b *bytes.Buffer) {
 	b.Write(list.Bytes())
 }
 
-func writeSupportedVersionsExt(b *bytes.Buffer) {
-	// GREASE + TLS 1.3 (0x0304) + TLS 1.2 (0x0303)
+func writeSupportedVersionsExt(b *bytes.Buffer, grease bool) {
 	var list bytes.Buffer
-	writeLen16(&list, greaseValue())
+	if grease {
+		writeLen16(&list, greaseValue())
+	}
 	writeLen16(&list, 0x0304)
 	writeLen16(&list, 0x0303)
 	writeLen16(b, 0x002B)
@@ -333,11 +535,12 @@ func writeSupportedVersionsExt(b *bytes.Buffer) {
 	b.Write(list.Bytes())
 }
 
-func writeKeyShareExt(b *bytes.Buffer) {
-	// GREASE (empty) + x25519 32-byte random key
+func writeKeyShareExt(b *bytes.Buffer, grease bool) {
 	var ks bytes.Buffer
-	writeLen16(&ks, greaseValue())
-	writeLen16(&ks, 0)
+	if grease {
+		writeLen16(&ks, greaseValue())
+		writeLen16(&ks, 0)
+	}
 	writeLen16(&ks, 0x001D) // x25519
 	writeLen16(&ks, 32)
 	ks.Write(randomBytes(32))
@@ -464,7 +667,7 @@ func quicInitialPacket(domain string) string {
 	var crypto bytes.Buffer
 	crypto.WriteByte(0x06)           // CRYPTO frame type
 	crypto.Write([]byte{0x00, 0x00}) // offset 0, var-int length placeholder
-	ch := buildTLSClientHello(domain)
+	ch := buildChromeHello(domain)
 	writeVarint(&crypto, len(ch))
 	crypto.Write(ch)
 

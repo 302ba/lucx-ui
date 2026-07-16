@@ -23,6 +23,7 @@ import (
 type awgGenerateObfuscationRequest struct {
 	ObfProfile     string `json:"obfProfile"`
 	MimicryProfile string `json:"mimicryProfile"`
+	BrowserProfile string `json:"browserProfile"`
 	Region         string `json:"region"`
 	Domain         string `json:"domain"`
 	FullI1I5       bool   `json:"fullI1I5"`
@@ -50,6 +51,9 @@ func (a *InboundController) awgGenerateObfuscation(c *gin.Context) {
 	if req.Region == "" {
 		req.Region = string(cps.RegionWorld)
 	}
+	if req.BrowserProfile == "" {
+		req.BrowserProfile = string(cps.BrowserChrome)
+	}
 	params, err := cps.GenerateAWGParams(cps.ObfProfile(req.ObfProfile))
 	if err != nil {
 		jsonMsg(c, "awg obfuscation: bad profile", err)
@@ -59,6 +63,7 @@ func (a *InboundController) awgGenerateObfuscation(c *gin.Context) {
 		cps.MimicryProfile(req.MimicryProfile),
 		cps.Region(req.Region),
 		req.Domain,
+		cps.BrowserProfile(req.BrowserProfile),
 		!req.FullI1I5, // GenerateCPS's onlyI1 is the inverse of "full I1-I5"
 	)
 	if err != nil {
