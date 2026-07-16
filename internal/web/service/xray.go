@@ -650,15 +650,13 @@ func injectAwgEgress(cfg *xray.Config, inbound *model.Inbound) {
 		}
 	}
 
-	// When no outboundTag is set, default to "direct" (the freedom outbound
-	// Xray always creates) so TUN traffic has an explicit routing rule. Without
-	// a rule, Xray may not route TUN IP packets correctly — the default
-	// "first outbound" fallback applies to TCP, not TUN IP packets.
-	outboundTag := parsed.OutboundTag
-	if outboundTag == "" {
-		outboundTag = "direct"
-	}
-	{
+	// When outboundTag is set, prepend a routing rule that sends all traffic
+	// from this AWG TUN inbound to that specific outbound (e.g. "warp",
+	// "vless-out", a balancer). When outboundTag is empty, no rule is added —
+	// TUN traffic falls through to Xray's general routing pipeline, so
+	// sniffing/domain/IP/balancer rules apply normally (the "Xray kettle").
+	// This mirrors mtproto: an empty outboundTag means "let Xray decide".
+	if parsed.OutboundTag != "" {
 		routing := map[string]any{}
 		parseOK := true
 		if len(cfg.RouterConfig) > 0 {
@@ -673,10 +671,10 @@ func injectAwgEgress(cfg *xray.Config, inbound *model.Inbound) {
 				"type":       "field",
 				"inboundTag": []any{tag},
 			}
-			if routingTagIsBalancer(routing, outboundTag) {
-				rule["balancerTag"] = outboundTag
+			if routingTagIsBalancer(routing, parsed.OutboundTag) {
+				rule["balancerTag"] = parsed.OutboundTag
 			} else {
-				rule["outboundTag"] = outboundTag
+				rule["outboundTag"] = parsed.OutboundTag
 			}
 			routing["rules"] = append([]any{rule}, rules...)
 			if newRouting, err := json.Marshal(routing); err == nil {
