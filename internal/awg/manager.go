@@ -288,25 +288,31 @@ func natPostUpPostDown(inst Instance) (postUp, postDown string) {
 	tunName := fmt.Sprintf("tun%d", inst.Id)
 
 	if inst.RouteThroughXray {
+		// Policy routing: send all traffic FROM the AWG subnet into tunN via
+		// a dedicated routing table (100). This is needed because a plain
+		// `ip route replace <subnet> dev tunN` only routes packets DESTINED to
+		// the subnet through tunN, not packets FROM it. Client packets have
+		// src=10.8.0.x, dst=internet — we need them to go through tunN so
+		// Xray can process them. A separate table avoids disturbing the main
+		// route table (which still needs to deliver return traffic to awgN).
+		// The retry loop waits for tunN to appear (Xray creates it after
+		// awg-quick up). ip rule + ip route in table 100 are idempotent
+		// (replace, not add) so re-runs are safe.
 		postUp = fmt.Sprintf(
 			"echo 1 > /proc/sys/net/ipv4/ip_forward; "+
-				"iptables -C FORWARD -i %s -j ACCEPT 2>/dev/null || "+
-				"iptables -A FORWARD -i %s -j ACCEPT; "+
-				"iptables -C FORWARD -o %s -j ACCEPT 2>/dev/null || "+
-				"iptables -A FORWARD -o %s -j ACCEPT; "+
+				"ip rule del from %s lookup 100 2>/dev/null || true; "+
+				"ip rule add from %s lookup 100; "+
 				"sh -c 'for i in 1 2 3 4 5 6 7 8 9 10; do "+
 				"ip link show %s >/dev/null 2>&1 && "+
-				"ip route replace %s dev %s 2>/dev/null && break; "+
+				"ip route replace default dev %s table 100 2>/dev/null && break; "+
 				"sleep 1; done' &",
-			iface, iface, iface, iface,
-			tunName, subnet, tunName,
+			subnet, subnet,
+			tunName, tunName,
 		)
 		postDown = fmt.Sprintf(
-			"ip route del %s dev %s 2>/dev/null || true; "+
-				"iptables -D FORWARD -i %s -j ACCEPT 2>/dev/null || true; "+
-				"iptables -D FORWARD -o %s -j ACCEPT 2>/dev/null || true",
-			subnet, tunName,
-			iface, iface,
+			"ip rule del from %s lookup 100 2>/dev/null || true; "+
+				"ip route flush table 100 2>/dev/null || true",
+			subnet,
 		)
 		return postUp, postDown
 	}

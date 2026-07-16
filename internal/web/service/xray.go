@@ -635,7 +635,6 @@ func injectAwgEgress(cfg *xray.Config, inbound *model.Inbound) {
 		OutboundTag      string `json:"outboundTag"`
 		MTU              int    `json:"mtu"`
 		Address          string `json:"address"`
-		DNS              string `json:"dns"`
 	}
 	if err := json.Unmarshal([]byte(inbound.Settings), &parsed); err != nil {
 		return
@@ -684,20 +683,14 @@ func injectAwgEgress(cfg *xray.Config, inbound *model.Inbound) {
 	if mtu == 0 {
 		mtu = 1320
 	}
-	// The TUN gateway must be a CIDR address inside the AWG subnet — the
-	// server's tunnel address (e.g. "10.8.0.1/24" from Address =
-	// "10.8.0.1/24"). Xray's TUN inbound rejects bare IPs ("invalid CIDR
-	// address: 10.8.0.1"), so the /prefix must be present. Keep Address
-	// verbatim when it already carries a prefix; otherwise synthesize /24.
-	gateway := parsed.Address
-	if gateway == "" {
-		gateway = "10.8.0.1/24"
-	}
-	if !strings.Contains(gateway, "/") {
-		gateway = gateway + "/24"
-	}
+	// The TUN device needs its own IP in CIDR format (Xray rejects bare IPs:
+	// "invalid CIDR address"). We use a fixed /30 in a separate subnet
+	// (10.254.254.0/30) so it never conflicts with the AWG tunnel subnet
+	// (typically 10.8.0.0/24). If both subnets overlapped, the kernel would
+	// auto-add conflicting connected routes and return packets from Xray
+	// could loop back into tunN instead of going to awgN.
 	tunName := fmt.Sprintf("tun%d", inbound.Id)
-	tunSettings := fmt.Sprintf(awgEgressTunSettingsFmt, tunName, mtu, gateway)
+	tunSettings := fmt.Sprintf(awgEgressTunSettingsFmt, tunName, mtu, "10.254.254.1/30")
 	cfg.InboundConfigs = append(cfg.InboundConfigs, xray.InboundConfig{
 		Protocol: "tun",
 		Settings: json_util.RawMessage(tunSettings),

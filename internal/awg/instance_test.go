@@ -237,8 +237,11 @@ func TestRenderServerConf_RouteThroughXrayHasRouteToTun(t *testing.T) {
 	if !strings.Contains(conf, "tun1") {
 		t.Errorf("PostUp must reference tun1 (Xray TUN inbound), got:\n%s", conf)
 	}
-	if !strings.Contains(conf, "ip route replace") {
-		t.Errorf("PostUp must add ip route to tun, got:\n%s", conf)
+	if !strings.Contains(conf, "ip rule add from 10.8.0.0/24 lookup 100") {
+		t.Errorf("PostUp must add policy routing rule for AWG subnet, got:\n%s", conf)
+	}
+	if !strings.Contains(conf, "table 100") {
+		t.Errorf("PostUp must use routing table 100, got:\n%s", conf)
 	}
 	if strings.Contains(conf, "MASQUERADE") {
 		t.Errorf("PostUp must NOT contain MASQUERADE when routeThroughXray, got:\n%s", conf)
