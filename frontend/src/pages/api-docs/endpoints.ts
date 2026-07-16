@@ -207,6 +207,27 @@ export const sections: readonly Section[] = [
       },
       {
         method: 'POST',
+        path: '/panel/api/inbounds/awg/generateObfuscation',
+        summary: 'Generate AmneziaWG obfuscation parameters (Jc/Jmin/Jmax/S1-S4/H1-H4) and optionally CPS packets (I1-I5) for a given profile, region, and mimicry type. LucX-UI only.',
+        params: [
+          { name: 'obfProfile', in: 'body', type: 'string', desc: 'Obfuscation preset: "lite", "standard", or "pro".' },
+          { name: 'mimicryProfile', in: 'body', type: 'string', desc: 'CPS mimicry type: "tls", "dns", "sip", or "quic".' },
+          { name: 'region', in: 'body', type: 'string', desc: 'Domain pool region: "ru" or "world".' },
+          { name: 'domain', in: 'body', type: 'string', desc: 'Optional explicit domain for CPS capture.' },
+          { name: 'fullI1I5', in: 'body', type: 'boolean', desc: 'When true, generate all five CPS packets; when false, only I1.' },
+        ],
+      },
+      {
+        method: 'POST',
+        path: '/panel/api/inbounds/awg/captureHost',
+        summary: 'Capture real QUIC Initial packets from a remote host and extract I1-I5 CPS values for AmneziaWG mimicry. LucX-UI only.',
+        params: [
+          { name: 'domain', in: 'body', type: 'string', desc: 'Domain to probe (QUIC Initial with TLS SNI=domain).' },
+          { name: 'region', in: 'body', type: 'string', desc: 'Domain pool region for fallback: "ru" or "world".' },
+        ],
+      },
+      {
+        method: 'POST',
         path: '/panel/api/inbounds/import',
         summary: 'Bulk-import an inbound from a JSON blob (e.g. one exported via the UI). The body uses form encoding with a single "data" field.',
         params: [

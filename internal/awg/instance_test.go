@@ -246,13 +246,29 @@ func TestRenderServerConf_NoPostUpWhenNoAddress(t *testing.T) {
 	}
 }
 
-func TestNatPostUpPostDown_EmptyWhenNoDefaultRoute(t *testing.T) {
+func TestNatPostUpPostDown_ContainsMasquerade(t *testing.T) {
 	inst := Instance{
 		Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320,
 		Address: "10.8.0.1/24", RouteThroughXray: false,
 	}
 	postUp, postDown := natPostUpPostDown(inst)
-	if postUp != "" || postDown != "" {
-		t.Errorf("on non-Linux (no default route), PostUp/PostDown must be empty, got up=%q down=%q", postUp, postDown)
+	ext := defaultRouteInterface()
+	if ext == "" {
+		if postUp != "" || postDown != "" {
+			t.Errorf("no default route: PostUp/PostDown must be empty, got up=%q down=%q", postUp, postDown)
+		}
+		return
+	}
+	if postUp == "" {
+		t.Fatalf("default route %q exists but PostUp is empty", ext)
+	}
+	if !strings.Contains(postUp, "MASQUERADE") {
+		t.Errorf("PostUp must contain MASQUERADE, got %q", postUp)
+	}
+	if !strings.Contains(postUp, "ip_forward") {
+		t.Errorf("PostUp must enable ip_forward, got %q", postUp)
+	}
+	if !strings.Contains(postDown, "MASQUERADE") {
+		t.Errorf("PostDown must contain MASQUERADE, got %q", postDown)
 	}
 }
