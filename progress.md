@@ -412,6 +412,18 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 ---
 
+## Фикс: убрать DNS из серверного .conf (2026-07-16, v3.5.0-lucx.21)
+
+**Проблема:** `renderServerConf` писал `DNS = 1.1.1.1, 1.0.0.1` в **серверный** `.conf`. awg-quick при `up` вызывает `resolvconf`/`openresolv` для применения DNS — это перезаписывает системный DNS сервера. На VPS это могло ломать name resolution и вызывать зависания.
+
+**Решение:** DNS — **клиентская** настройка, серверу она не нужна (он просто форвардит пакеты через NAT). pumbaX/awg-multi-script никогда не пишет `DNS =` в серверный конфиг. Убран из `renderServerConf`. Поле `Instance.DNS` остаётся в struct для fingerprint и для `injectAwgEgress` (TUN gateway берётся из DNS), но не пишется в .conf. Клиентские конфиги (`genAwgConfig`, `buildAwgClientConfig`) пишут DNS как раньше.
+
+**Тесты:** `TestRenderServerConf_NeverWritesDNS` (новый), `TestRenderServerConf_IncludesObfuscationAndPeers` обновлён.
+
+**lucxVersion** → `lucx.21`.
+
+---
+
 ## Заметки
 
 - v3.5.0 релиз 2026-07-12 (вчера)
