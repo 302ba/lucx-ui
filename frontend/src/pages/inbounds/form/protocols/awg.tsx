@@ -269,7 +269,10 @@ export default function AwgFields() {
             allowClear
             showSearch
             placeholder={t('pages.inbounds.form.awgRouteOutboundPlaceholder')}
-            options={(outboundTags ?? []).map((tag) => ({ value: tag, label: tag }))}
+            options={[
+              { value: '', label: t('pages.inbounds.form.awgRouteOutboundPlaceholder') },
+              ...(outboundTags ?? []).map((tag) => ({ value: tag, label: tag })),
+            ]}
           />
         </FormField>
       )}
