@@ -99,8 +99,10 @@ func TestInstanceFromInbound_NilInbound(t *testing.T) {
 }
 
 func TestInstanceFingerprint_StableForEqualInstances(t *testing.T) {
-	inst := Instance{Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k",
-		MTU: 1320, Jc: 5, Peers: []PeerSpec{{PublicKey: "p1", PSK: "psk", Keepalive: 25, AllowedIPs: "0.0.0.0/0, ::/0"}}}
+	inst := Instance{
+		Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k",
+		MTU: 1320, Jc: 5, Peers: []PeerSpec{{PublicKey: "p1", PSK: "psk", Keepalive: 25, AllowedIPs: "0.0.0.0/0, ::/0"}},
+	}
 	a := inst.fingerprint()
 	b := inst.fingerprint()
 	if a != b {
@@ -109,8 +111,10 @@ func TestInstanceFingerprint_StableForEqualInstances(t *testing.T) {
 }
 
 func TestInstanceFingerprint_ChangesOnPeerMutation(t *testing.T) {
-	inst := Instance{Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k",
-		Peers: []PeerSpec{{PublicKey: "p1", PSK: "psk"}}}
+	inst := Instance{
+		Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k",
+		Peers: []PeerSpec{{PublicKey: "p1", PSK: "psk"}},
+	}
 	before := inst.fingerprint()
 	inst.Peers = append(inst.Peers, PeerSpec{PublicKey: "p2", PSK: "psk2"})
 	after := inst.fingerprint()
