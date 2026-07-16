@@ -315,9 +315,11 @@ func renderServerConf(inst Instance) string {
 		fmt.Fprintf(&b, "Address = %s\n", inst.Address)
 	}
 	fmt.Fprintf(&b, "MTU = %d\n", inst.MTU)
-	if inst.DNS != "" {
-		fmt.Fprintf(&b, "DNS = %s\n", inst.DNS)
-	}
+	// DNS is CLIENT-ONLY — the server does not resolve through the tunnel.
+	// Writing DNS to the server .conf makes awg-quick call resolvconf/openresolv
+	// and overwrite the server's system DNS (e.g. with "1.1.1.1, 1.0.0.1"),
+	// which can break name resolution on the host. pumbaX/awg-multi-script
+	// never writes DNS to the server .conf, only to client configs.
 	fmt.Fprintf(&b, "Jc = %d\n", inst.Jc)
 	fmt.Fprintf(&b, "Jmin = %d\n", inst.Jmin)
 	fmt.Fprintf(&b, "Jmax = %d\n", inst.Jmax)

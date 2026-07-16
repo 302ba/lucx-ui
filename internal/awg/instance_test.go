@@ -155,7 +155,6 @@ func TestRenderServerConf_IncludesObfuscationAndPeers(t *testing.T) {
 		"PrivateKey = server-priv",
 		"ListenPort = 47000",
 		"MTU = 1320",
-		"DNS = 1.1.1.1",
 		"Jc = 8", "Jmin = 70", "Jmax = 200",
 		"S1 = 30", "S2 = 60", "S3 = 20", "S4 = 10",
 		"H1 = 100000-500000", "H4 = 1600000-2000000",
@@ -172,6 +171,10 @@ func TestRenderServerConf_IncludesObfuscationAndPeers(t *testing.T) {
 			t.Errorf("renderServerConf missing %q\nConf:\n%s", s, conf)
 		}
 	}
+	// DNS is CLIENT-ONLY — never in the server .conf.
+	if strings.Contains(conf, "DNS =") {
+		t.Errorf("DNS must never appear in server .conf, got:\n%s", conf)
+	}
 }
 
 func TestRenderServerConf_OmitsCPSWhenEmpty(t *testing.T) {
@@ -182,11 +185,11 @@ func TestRenderServerConf_OmitsCPSWhenEmpty(t *testing.T) {
 	}
 }
 
-func TestRenderServerConf_OmitsDNSWhenEmpty(t *testing.T) {
-	inst := Instance{Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320}
+func TestRenderServerConf_NeverWritesDNS(t *testing.T) {
+	inst := Instance{Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320, DNS: "1.1.1.1, 1.0.0.1"}
 	conf := renderServerConf(inst)
 	if strings.Contains(conf, "DNS =") {
-		t.Errorf("DNS must be omitted when empty, got:\n%s", conf)
+		t.Errorf("DNS must never appear in server .conf even when set, got:\n%s", conf)
 	}
 }
 
