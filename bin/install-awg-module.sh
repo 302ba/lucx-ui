@@ -3,6 +3,11 @@ set -e
 
 # =============================================================================
 # LucX-UI: Установка модуля ядра AmneziaWG (DKMS + update-initramfs)
+#
+# Универсальный скрипт — работает на Debian/Ubuntu/Armbian с любым ядром.
+# Обходит проблему "linux-headers-$(uname -r) не найден" через fallback на
+# meta-package + предложение reboot если ядро обновилось но не загружено.
+# Подход перенят из pumbaX/awg-multi-script (do_install).
 # =============================================================================
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; NC='\033[0m'
@@ -17,24 +22,76 @@ if [[ -d /sys/module/amneziawg ]]; then
     command -v awg &>/dev/null && { echo -e "${GREEN}awg уже установлен.${NC}"; exit 0; }
 fi
 
+# Detect OS
+if [[ -f /etc/os-release ]]; then
+    source /etc/os-release
+    OS_ID=$ID
+else
+    echo -e "${RED}Не удалось определить ОС (/etc/os-release отсутствует)${NC}"
+    exit 1
+fi
+
 # 1. Install build dependencies
 echo -e "${GREEN}Установка сборочных зависимостей...${NC}"
 apt-get update -qq
-apt-get install -y -q build-essential dkms linux-headers-$(uname -r) git unzip curl \
-    || apt-get install -y -q build-essential dkms linux-headers-amd64 git unzip curl \
-    || true
 
-# openresolv is required by awg-quick when the .conf has a DNS= line: awg-quick
-# calls `resolvconf -a` to register the tunnel DNS, and the command is absent
-# on a minimal Debian/Ubuntu install (no resolvconf binary). Without it
-# `awg-quick up` fails with "resolvconf: command not found" and the interface
-# never comes up.
+# Core build tools + DKMS + git
+apt-get install -y -q build-essential dkms git unzip curl 2>/dev/null || true
+
+# openresolv — awg-quick вызывает resolvconf при наличии DNS= в .conf.
+# Без него awg-quick up падает с "resolvconf: command not found".
 apt-get install -y -q openresolv 2>/dev/null || echo -e "${YELLOW}openresolv не установлен — awg-quick может падать на DNS=${NC}"
 
-# 2. Check kernel headers
-if [[ ! -d /lib/modules/$(uname -r)/build ]]; then
-    echo -e "${RED}Заголовки ядра для $(uname -r) не найдены.${NC}"
-    echo -e "${YELLOW}Попробуй: apt-get install linux-headers-$(uname -r)${NC}"
+# 2. Install kernel headers — универсальная логика с fallback
+RUNNING_KERNEL=$(uname -r)
+echo -e "${GREEN}Ядро: ${RUNNING_KERNEL}${NC}"
+
+# Сначала пробуем точный пакет headers для текущего ядра
+if [[ ! -d "/lib/modules/${RUNNING_KERNEL}/build" ]]; then
+    echo -e "${GREEN}Установка linux-headers для ${RUNNING_KERNEL}...${NC}"
+    apt-get install -y -q "linux-headers-${RUNNING_KERNEL}" 2>/dev/null || true
+fi
+
+# Если точный пакет не найден — fallback на meta-package
+if [[ ! -d "/lib/modules/${RUNNING_KERNEL}/build" ]]; then
+    echo -e "${YELLOW}Точные headers не найдены, пробуем meta-package...${NC}"
+    case "$OS_ID" in
+        ubuntu|debian|linuxmint|raspbian)
+            apt-get install -y -q linux-headers-amd64 2>/dev/null || \
+            apt-get install -y -q linux-headers-generic 2>/dev/null || \
+            apt-get install -y -q linux-headers-generic-hwe-22.04 2>/dev/null || true
+            ;;
+        armbian)
+            apt-get install -y -q linux-headers-current-sunxi 2>/dev/null || \
+            apt-get install -y -q linux-headers-current-rockchip 2>/dev/null || \
+            apt-get install -y -q linux-headers-current-arm64 2>/dev/null || true
+            ;;
+        *)
+            apt-get install -y -q linux-headers-amd64 2>/dev/null || \
+            apt-get install -y -q linux-headers-generic 2>/dev/null || true
+            ;;
+    esac
+fi
+
+# Если headers всё ещё нет — возможно ядро обновилось но не загружено
+if [[ ! -d "/lib/modules/${RUNNING_KERNEL}/build" ]]; then
+    # Проверим — есть ли headers для НОВОГО ядра (не загруженного)
+    NEWEST_HEADERS=$(ls -d /lib/modules/*/build 2>/dev/null | head -1)
+    if [[ -n "$NEWEST_HEADERS" ]]; then
+        NEWEST_KERNEL=$(basename $(dirname "$NEWEST_HEADERS"))
+        echo -e "${YELLOW}┌──────────────────────────────────────────────────────────┐${NC}"
+        echo -e "${YELLOW}│ Headers найдены для ${NEWEST_KERNEL}, но загружено ${RUNNING_KERNEL}        │${NC}"
+        echo -e "${YELLOW}│ Ядро обновилось но не загружено. Нужен REBOOT.           │${NC}"
+        echo -e "${YELLOW}│ После reboot запустите этот скрипт снова.                │${NC}"
+        echo -e "${YELLOW}└──────────────────────────────────────────────────────────┘${NC}"
+        echo -e "${GREEN}Выполняю reboot...${NC}"
+        sleep 3
+        reboot
+        exit 0
+    fi
+    echo -e "${RED}Заголовки ядра для ${RUNNING_KERNEL} не найдены.${NC}"
+    echo -e "${YELLOW}Попробуй: apt-get install linux-headers-${RUNNING_KERNEL}${NC}"
+    echo -e "${YELLOW}Или обнови ядро: apt-get install linux-image-amd64 && reboot${NC}"
     exit 1
 fi
 echo -e "${GREEN}Заголовки ядра: OK${NC}"
@@ -74,7 +131,7 @@ fi
 
 # 5. Load module and enable autostart
 modprobe amneziawg 2>/dev/null || {
-    echo -e "${YELLOW}Не удалось загрузить модуль. Возможно, нужен ребут.${NC}"
+    echo -e "${YELLOW}Не удалось загрузить модоль. Возможно, нужен ребут.${NC}"
 }
 echo "amneziawg" > /etc/modules-load.d/amneziawg.conf
 
@@ -103,4 +160,6 @@ else
     echo -e "${YELLOW}⚠ Модуль не загружен — нужен ребут${NC}"
 fi
 command -v awg &>/dev/null && echo -e "${GREEN}✓ awg установлен ($(awg version 2>&1 | head -1))${NC}"
+command -v awg-quick &>/dev/null && echo -e "${GREEN}✓ awg-quick установлен${NC}"
+command -v resolvconf &>/dev/null && echo -e "${GREEN}✓ resolvconf (openresolv) установлен${NC}"
 echo -e "${GREEN}=== Установка AWG завершена ===${NC}"
