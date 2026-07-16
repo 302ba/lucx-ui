@@ -34,7 +34,7 @@ const (
 	MTProto     Protocol = "mtproto"
 	// LUCX-HOOK: AmneziaWG protocol — managed as a kernel-interface sidecar,
 	// excluded from the generated Xray config (see internal/awg).
-	AWG         Protocol = "awg"
+	AWG Protocol = "awg"
 	// END LUCX-HOOK
 )
 

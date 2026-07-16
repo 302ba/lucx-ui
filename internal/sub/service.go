@@ -740,6 +740,7 @@ func (s *SubService) genAwgLink(inbound *model.Inbound, email string) string {
 	}
 	return buildLinkWithParams(link, params, s.genRemark(inbound, email, "", ""))
 }
+
 // END LUCX-HOOK
 
 // genMtprotoLink builds a per-client Telegram proxy deep link for an mtproto
