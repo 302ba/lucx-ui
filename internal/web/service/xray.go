@@ -683,9 +683,14 @@ func injectAwgEgress(cfg *xray.Config, inbound *model.Inbound) {
 	if mtu == 0 {
 		mtu = 1320
 	}
+	// TUN gateway expects a single IP, but settings.dns can be a
+	// comma-separated list ("1.1.1.1, 1.0.0.1"). Take the first entry only.
 	gateway := parsed.DNS
 	if gateway == "" {
 		gateway = "1.1.1.1"
+	}
+	if i := strings.IndexByte(gateway, ','); i >= 0 {
+		gateway = strings.TrimSpace(gateway[:i])
 	}
 	tunName := fmt.Sprintf("tun%d", inbound.Id)
 	tunSettings := fmt.Sprintf(awgEgressTunSettingsFmt, tunName, mtu, gateway)
