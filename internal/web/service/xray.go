@@ -684,17 +684,17 @@ func injectAwgEgress(cfg *xray.Config, inbound *model.Inbound) {
 	if mtu == 0 {
 		mtu = 1320
 	}
-	// The TUN gateway must be an IP inside the AWG subnet — the server's
-	// tunnel address (e.g. "10.8.0.1" from Address = "10.8.0.1/24"). Using a
-	// DNS server (1.1.1.1) here was wrong: Xray creates the TUN with that
-	// gateway, but it has no relation to the AWG subnet, so packets from
-	// clients (src 10.8.0.x) cannot be routed. Strip the CIDR suffix if present.
+	// The TUN gateway must be a CIDR address inside the AWG subnet — the
+	// server's tunnel address (e.g. "10.8.0.1/24" from Address =
+	// "10.8.0.1/24"). Xray's TUN inbound rejects bare IPs ("invalid CIDR
+	// address: 10.8.0.1"), so the /prefix must be present. Keep Address
+	// verbatim when it already carries a prefix; otherwise synthesize /24.
 	gateway := parsed.Address
-	if i := strings.IndexByte(gateway, '/'); i > 0 {
-		gateway = gateway[:i]
-	}
 	if gateway == "" {
-		gateway = "10.8.0.1"
+		gateway = "10.8.0.1/24"
+	}
+	if !strings.Contains(gateway, "/") {
+		gateway = gateway + "/24"
 	}
 	tunName := fmt.Sprintf("tun%d", inbound.Id)
 	tunSettings := fmt.Sprintf(awgEgressTunSettingsFmt, tunName, mtu, gateway)

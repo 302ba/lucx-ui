@@ -408,8 +408,8 @@ func TestInjectAwgEgress_WithOutbound(t *testing.T) {
 	if settings.MTU != 1320 {
 		t.Errorf("expected mtu 1320, got %d", settings.MTU)
 	}
-	if len(settings.Gateway) != 1 || settings.Gateway[0] != "10.8.0.1" {
-		t.Errorf("expected gateway [10.8.0.1] from address, got %v", settings.Gateway)
+	if len(settings.Gateway) != 1 || settings.Gateway[0] != "10.8.0.1/24" {
+		t.Errorf("expected gateway [10.8.0.1/24] from address (CIDR required by Xray TUN), got %v", settings.Gateway)
 	}
 	// Routing rule prepended with outboundTag.
 	var r egressRouting
@@ -480,8 +480,8 @@ func TestInjectAwgEgress_DefaultMTUAndGateway(t *testing.T) {
 	if settings.MTU != 1320 {
 		t.Errorf("expected default mtu 1320, got %d", settings.MTU)
 	}
-	if len(settings.Gateway) != 1 || settings.Gateway[0] != "10.8.0.1" {
-		t.Errorf("expected default gateway [10.8.0.1] when address is unset, got %v", settings.Gateway)
+	if len(settings.Gateway) != 1 || settings.Gateway[0] != "10.8.0.1/24" {
+		t.Errorf("expected default gateway [10.8.0.1/24] when address is unset (CIDR required by Xray TUN), got %v", settings.Gateway)
 	}
 }
 
