@@ -17,11 +17,11 @@ func TestDetectNodeType_LucX(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/panel/api/lucx/hello" {
 			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(200)
+			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"success":true,"obj":{"version":"1.0.0","features":["awg","mtproto","presets","cluster"],"awgVersion":"2.0.1","mtprotoVersion":"1.2.3"}}`))
 			return
 		}
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 
@@ -45,7 +45,7 @@ func TestDetectNodeType_LucX(t *testing.T) {
 
 func TestDetectNodeType_Vanilla(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(404)
+		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 

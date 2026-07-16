@@ -37,7 +37,7 @@ type lucxHelloResponse struct {
 func DetectNodeType(ctx context.Context, baseURL string, apiToken string) (*NodeInfo, error) {
 	url := baseURL + "/panel/api/lucx/hello"
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -51,11 +51,11 @@ func DetectNodeType(ctx context.Context, baseURL string, apiToken string) (*Node
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 404 {
+	if resp.StatusCode == http.StatusNotFound {
 		return &NodeInfo{NodeType: "vanilla"}, nil
 	}
 
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
 	}
 

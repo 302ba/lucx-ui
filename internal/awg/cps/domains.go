@@ -24,9 +24,9 @@ const (
 type MimicryProfile string
 
 const (
-	ProfileTLS MimicryProfile = "tls"
-	ProfileDNS MimicryProfile = "dns"
-	ProfileSIP MimicryProfile = "sip"
+	ProfileTLS  MimicryProfile = "tls"
+	ProfileDNS  MimicryProfile = "dns"
+	ProfileSIP  MimicryProfile = "sip"
 	ProfileQUIC MimicryProfile = "quic"
 )
 
@@ -60,12 +60,6 @@ var tlsDomainsWorld = []string{
 	"instagram.com", "netflix.com", "spotify.com", "twitter.com",
 	"linkedin.com", "wikipedia.org", "reddit.com", "dropbox.com",
 	"digitalocean.com",
-}
-
-// dtlsDomains (used for DTLS/SIP-UDP fronting). Shared across regions.
-var dtlsDomains = []string{
-	"meet.jit.si", "stun.nextcloud.com", "stun.sipgate.net",
-	"stun.zoiper.com", "stun.l.google.com",
 }
 
 var sipDomains = []string{

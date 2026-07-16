@@ -63,14 +63,6 @@ type PeerSpec struct {
 	AllowedIPs string // client tunnel address, e.g. "10.0.0.2/32"; falls back to "0.0.0.0/0, ::/0" only when unset
 }
 
-func (inst Instance) bindTo() string {
-	listen := inst.Listen
-	if listen == "" {
-		listen = "0.0.0.0"
-	}
-	return listen
-}
-
 // fingerprint changes whenever any value that ends up in the generated .conf
 // changes, so ensureLocked restarts awg-quick when the operator edits a setting.
 func (inst Instance) fingerprint() string {

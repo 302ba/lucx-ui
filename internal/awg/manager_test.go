@@ -47,7 +47,7 @@ func TestManager_Remove_Missing(t *testing.T) {
 func TestManager_CollectTraffic_Empty(t *testing.T) {
 	m := GetManager()
 	out := m.CollectTraffic()
-	if out != nil && len(out) != 0 {
+	if len(out) != 0 {
 		t.Fatalf("expected nil/empty from CollectTraffic on empty manager, got %v", out)
 	}
 }

@@ -7,6 +7,7 @@
 package awg
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
 	"os"
@@ -382,7 +383,7 @@ func (m *Manager) SyncPeers(id int, peers []PeerSpec) error {
 		if p.Keepalive > 0 {
 			args = append(args, "persistent-keepalive", fmt.Sprintf("%d", p.Keepalive))
 		}
-		if out, err := exec.Command("awg", args...).CombinedOutput(); err != nil {
+		if out, err := exec.CommandContext(context.Background(), "awg", args...).CombinedOutput(); err != nil {
 			logger.Warningf("awg: set peer %s on %s: %v\n%s", p.PublicKey[:8], ifname, err, string(out))
 		}
 	}
@@ -394,7 +395,7 @@ func (m *Manager) SyncPeers(id int, peers []PeerSpec) error {
 	}
 	for pub := range current {
 		if !desiredSet[pub] {
-			if out, err := exec.Command("awg", "set", ifname, "peer", pub, "remove").CombinedOutput(); err != nil {
+			if out, err := exec.CommandContext(context.Background(), "awg", "set", ifname, "peer", pub, "remove").CombinedOutput(); err != nil {
 				logger.Warningf("awg: remove peer %s on %s: %v\n%s", pub[:8], ifname, err, string(out))
 			}
 		}
@@ -408,7 +409,7 @@ func (m *Manager) SyncPeers(id int, peers []PeerSpec) error {
 
 // kernelPeers returns the set of peer public keys currently on an interface.
 func kernelPeers(ifname string) map[string]bool {
-	out, err := exec.Command("awg", "show", ifname, "peers").Output()
+	out, err := exec.CommandContext(context.Background(), "awg", "show", ifname, "peers").Output()
 	if err != nil {
 		return nil
 	}

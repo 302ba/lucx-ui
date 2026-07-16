@@ -8,7 +8,6 @@ package awg
 
 import (
 	"bufio"
-	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -63,14 +62,4 @@ func scrapeTransfer(ifname string) (rx, tx int64, ok bool) {
 		return rx, tx, found
 	}
 	return rx, tx, found
-}
-
-// formatTransfer is a small helper for diagnostics: it returns a human-readable
-// summary of the current rx/tx counters for an interface.
-func formatTransfer(ifname string) string {
-	rx, tx, ok := scrapeTransfer(ifname)
-	if !ok {
-		return fmt.Sprintf("%s: <unavailable>", ifname)
-	}
-	return fmt.Sprintf("%s: rx=%d tx=%d", ifname, rx, tx)
 }

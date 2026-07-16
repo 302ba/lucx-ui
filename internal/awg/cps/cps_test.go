@@ -13,8 +13,7 @@ import (
 )
 
 func TestGenerateAWGParams_Invariants(t *testing.T) {
-	// Deterministic seed so a regression flips the test reproducibly.
-	rand.Seed(42)
+	SetRand(rand.New(rand.NewSource(42)))
 	for _, prof := range []ObfProfile{ObfLite, ObfStandard, ObfPro} {
 		for i := 0; i < 200; i++ {
 			p, err := GenerateAWGParams(prof)
@@ -35,7 +34,7 @@ func TestGenerateAWGParams_Invariants(t *testing.T) {
 }
 
 func TestGenerateCPS_AllProfilesNonEmpty(t *testing.T) {
-	rand.Seed(7)
+	SetRand(rand.New(rand.NewSource(7)))
 	for _, mp := range []MimicryProfile{ProfileTLS, ProfileDNS, ProfileSIP, ProfileQUIC} {
 		for _, reg := range []Region{RegionRU, RegionWorld} {
 			r1, err := GenerateCPS(mp, reg, "", true)
@@ -62,7 +61,7 @@ func TestGenerateCPS_AllProfilesNonEmpty(t *testing.T) {
 }
 
 func TestGenerateCPS_ExplicitDomain(t *testing.T) {
-	rand.Seed(1)
+	SetRand(rand.New(rand.NewSource(1)))
 	r, err := GenerateCPS(ProfileTLS, RegionWorld, "example.com", true)
 	if err != nil {
 		t.Fatal(err)

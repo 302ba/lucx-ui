@@ -12,7 +12,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"strings"
 )
 
@@ -36,10 +35,10 @@ func GenerateCPS(profile MimicryProfile, region Region, domain string, onlyI1 bo
 			return CPSResult{I1: i1}, nil
 		}
 		pool := DomainPool(ProfileTLS, region)
-		i2 := tlsPacket(pool[rand.Intn(len(pool))])
-		i3 := tlsPacket(pool[rand.Intn(len(pool))])
-		i4 := tlsPacket(pool[rand.Intn(len(pool))])
-		i5 := tlsPacket(pool[rand.Intn(len(pool))])
+		i2 := tlsPacket(pool[rng.Intn(len(pool))])
+		i3 := tlsPacket(pool[rng.Intn(len(pool))])
+		i4 := tlsPacket(pool[rng.Intn(len(pool))])
+		i5 := tlsPacket(pool[rng.Intn(len(pool))])
 		return CPSResult{I1: i1, I2: i2, I3: i3, I4: i4, I5: i5}, nil
 	case ProfileDNS:
 		i1 := dnsPacket(dom)
@@ -47,10 +46,10 @@ func GenerateCPS(profile MimicryProfile, region Region, domain string, onlyI1 bo
 			return CPSResult{I1: i1}, nil
 		}
 		pool := DomainPool(ProfileDNS, region)
-		i2 := dnsPacket(pool[rand.Intn(len(pool))])
-		i3 := dnsPacket(pool[rand.Intn(len(pool))])
-		i4 := dnsPacket(pool[rand.Intn(len(pool))])
-		i5 := dnsPacket(pool[rand.Intn(len(pool))])
+		i2 := dnsPacket(pool[rng.Intn(len(pool))])
+		i3 := dnsPacket(pool[rng.Intn(len(pool))])
+		i4 := dnsPacket(pool[rng.Intn(len(pool))])
+		i5 := dnsPacket(pool[rng.Intn(len(pool))])
 		return CPSResult{I1: i1, I2: i2, I3: i3, I4: i4, I5: i5}, nil
 	case ProfileSIP:
 		i1 := sipPacket(dom)
@@ -106,7 +105,7 @@ func randLowerAlphaNum(n int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = chars[rand.Intn(len(chars))]
+		b[i] = chars[rng.Intn(len(chars))]
 	}
 	return string(b)
 }
@@ -139,7 +138,7 @@ func writeUint24BE(b *bytes.Buffer, v int) {
 // through ClientHello to keep middleboxes tolerant of unknown values.
 func greaseValue() uint16 {
 	grease := []uint16{0x0A0A, 0x1A1A, 0x2A2A, 0x3A3A, 0x4A4A, 0x5A5A, 0x6A6A, 0x7A7A, 0x8A8A, 0x9A9A, 0xAAAA, 0xBABA, 0xCACA, 0xDADA, 0xEAEA, 0xFAFA}
-	return grease[rand.Intn(len(grease))]
+	return grease[rng.Intn(len(grease))]
 }
 
 // ---- TLS ClientHello (Chrome-shaped) ----
@@ -249,7 +248,7 @@ func buildTLSClientHello(host string) []byte {
 	writeLen16(&ext, greaseValue())
 	writeLen16(&ext, 0)
 	// padding (0x0015) — pad to a random length 0..48 of zero bytes
-	pad := rand.Intn(49)
+	pad := rng.Intn(49)
 	writeLen16(&ext, 0x0015)
 	writeLen16(&ext, pad)
 	for i := 0; i < pad; i++ {
@@ -356,7 +355,7 @@ func writeKeyShareExt(b *bytes.Buffer) {
 func dnsPacket(domain string) string {
 	var b bytes.Buffer
 	// ID (random 16-bit)
-	writeLen16(&b, uint16(rand.Intn(65536)))
+	writeLen16(&b, uint16(rng.Intn(65536)))
 	// flags: 0x0100 (RD)
 	writeLen16(&b, 0x0100)
 	// counts: 1 query, 0 answer, 0 authority, 1 additional (OPT)
@@ -367,7 +366,7 @@ func dnsPacket(domain string) string {
 	// Question: QNAME (label-encoded), qtype (A/AAAA/MX weighted), qclass IN
 	writeQName(&b, domain)
 	// Weighted qtype: A 60%, AAAA 30%, MX 10%
-	r := rand.Intn(100)
+	r := rng.Intn(100)
 	qtype := uint16(1) // A
 	if r >= 60 && r < 90 {
 		qtype = 28 // AAAA
@@ -380,7 +379,7 @@ func dnsPacket(domain string) string {
 	b.WriteByte(0x00) // root name
 	writeLen16(&b, 0x0029)
 	udpSize := 1232
-	if rand.Intn(2) == 0 {
+	if rng.Intn(2) == 0 {
 		udpSize = 4096
 	}
 	writeLen16(&b, uint16(udpSize))
@@ -411,16 +410,16 @@ func sipPacket(domain string) string {
 	if domain == "" {
 		domain = PickRandomDomain(sipDomains)
 	}
-	user := randLowerAlphaNum(rand.Intn(5) + 4)
+	user := randLowerAlphaNum(rng.Intn(5) + 4)
 	callID := randomHex(8)
 	branch := "z9hG4bK" + randomHex(7)
 	tag := randomHex(4)
-	cseq := rand.Intn(50) + 1
+	cseq := rng.Intn(50) + 1
 	host := domain
 	// Random private IP for Contact/Via
 	privIP := randomPrivateIP()
-	lport := []int{5060, 5062, 5080, 5160, rand.Intn(55000) + 10000}
-	port := lport[rand.Intn(len(lport))]
+	lport := []int{5060, 5062, 5080, 5160, rng.Intn(55000) + 10000}
+	port := lport[rng.Intn(len(lport))]
 
 	var b bytes.Buffer
 	fmt.Fprintf(&b, "REGISTER sip:%s SIP/2.0\r\n", host)
@@ -439,13 +438,13 @@ func sipPacket(domain string) string {
 }
 
 func randomPrivateIP() string {
-	switch rand.Intn(3) {
+	switch rng.Intn(3) {
 	case 0:
-		return fmt.Sprintf("10.%d.%d.%d", rand.Intn(256), rand.Intn(256), rand.Intn(254)+1)
+		return fmt.Sprintf("10.%d.%d.%d", rng.Intn(256), rng.Intn(256), rng.Intn(254)+1)
 	case 1:
-		return fmt.Sprintf("172.%d.%d.%d", rand.Intn(16)+16, rand.Intn(256), rand.Intn(254)+1)
+		return fmt.Sprintf("172.%d.%d.%d", rng.Intn(16)+16, rng.Intn(256), rng.Intn(254)+1)
 	default:
-		return fmt.Sprintf("192.168.%d.%d", rand.Intn(256), rand.Intn(254)+1)
+		return fmt.Sprintf("192.168.%d.%d", rng.Intn(256), rng.Intn(254)+1)
 	}
 }
 
@@ -463,7 +462,7 @@ func quicInitialPacket(domain string) string {
 	scid := randomBytes(8)
 	// CRYPTO frame (type 0x06) with a synthetic ClientHello-like payload.
 	var crypto bytes.Buffer
-	crypto.WriteByte(0x06) // CRYPTO frame type
+	crypto.WriteByte(0x06)           // CRYPTO frame type
 	crypto.Write([]byte{0x00, 0x00}) // offset 0, var-int length placeholder
 	ch := buildTLSClientHello(domain)
 	writeVarint(&crypto, len(ch))
@@ -502,7 +501,7 @@ func quicInitialPacket(domain string) string {
 // packet with a different first byte, ported from pumbaX gen_quic_second_initial.
 func quicSecondInitial() string {
 	var pkt bytes.Buffer
-	fb := []byte{0xC0, 0xC0, 0xC3}[rand.Intn(3)]
+	fb := []byte{0xC0, 0xC0, 0xC3}[rng.Intn(3)]
 	pkt.WriteByte(fb)
 	pkt.Write([]byte{0x00, 0x00, 0x00, 0x01})
 	pkt.WriteByte(8)
@@ -510,7 +509,7 @@ func quicSecondInitial() string {
 	pkt.WriteByte(8)
 	pkt.Write(randomBytes(8))
 	pkt.WriteByte(0x00) // token len 0
-	target := rand.Intn(300) + 300
+	target := rng.Intn(300) + 300
 	payload := randomBytes(target - pkt.Len())
 	writeVarint(&pkt, len(payload)+4)
 	pkt.Write([]byte{0x00, 0x00, 0x00, 0x00})
@@ -522,14 +521,14 @@ func quicSecondInitial() string {
 // pumbaX gen_quic_short: 0x40 | spin<<5 | key<<2 | (pn_len-1).
 func quicShortPacket() string {
 	var pkt bytes.Buffer
-	spin := rand.Intn(2)
-	key := rand.Intn(2)
-	pnLen := 1 + rand.Intn(4)
+	spin := rng.Intn(2)
+	key := rng.Intn(2)
+	pnLen := 1 + rng.Intn(4)
 	fb := byte(0x40) | byte(spin<<5) | byte(key<<2) | byte(pnLen-1)
 	pkt.WriteByte(fb)
 	pkt.Write(randomBytes(8)) // dcid
 	pkt.Write(randomBytes(pnLen))
-	pkt.Write(randomBytes(rand.Intn(50) + 40))
+	pkt.Write(randomBytes(rng.Intn(50) + 40))
 	return hexTag(pkt.Bytes())
 }
 

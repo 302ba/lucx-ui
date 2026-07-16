@@ -17,6 +17,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"context"
 	"net"
 	"net/url"
 	"strings"
@@ -96,17 +97,18 @@ func normalizeDomain(s string) string {
 
 // resolveHost resolves a domain to a single IPv4 (AWG QUIC fronting is IPv4).
 func resolveHost(domain string) (string, error) {
-	ips, err := net.LookupIP(domain)
+	resolver := net.Resolver{}
+	ips, err := resolver.LookupIPAddr(context.Background(), domain)
 	if err != nil {
 		return "", err
 	}
 	for _, ip := range ips {
-		if ip.To4() != nil {
-			return ip.To4().String(), nil
+		if ip.IP.To4() != nil {
+			return ip.IP.To4().String(), nil
 		}
 	}
 	if len(ips) > 0 {
-		return ips[0].String(), nil
+		return ips[0].IP.String(), nil
 	}
 	return "", errors.New("no IP found")
 }
@@ -119,7 +121,7 @@ func captureQUIC(host, ip string) ([][]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("signature: build QUIC initial: %w", err)
 	}
-	conn, err := net.DialTimeout("udp", net.JoinHostPort(ip, quicPort), readTimeout)
+	conn, err := (&net.Dialer{Timeout: readTimeout}).DialContext(context.Background(), "udp", net.JoinHostPort(ip, quicPort))
 	if err != nil {
 		return nil, fmt.Errorf("signature: dial %s:443: %w", ip, err)
 	}
@@ -366,12 +368,12 @@ func writeUint24(b *bytes.Buffer, v int) {
 func hkdfExpandLabel(secret []byte, label string, context []byte, length int) []byte {
 	fullLabel := "tls13 " + label
 	var info bytes.Buffer
-	binary.Write(&info, binary.BigEndian, uint16(length))
+	_ = binary.Write(&info, binary.BigEndian, uint16(length))
 	info.WriteByte(byte(len(fullLabel)))
 	info.WriteString(fullLabel)
 	info.WriteByte(byte(len(context)))
 	info.Write(context)
-	out, _ := hkdf.Expand(sha256.New, secret, string(info.Bytes()), length)
+	out, _ := hkdf.Expand(sha256.New, secret, info.String(), length)
 	return out
 }
 

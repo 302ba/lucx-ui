@@ -13,6 +13,15 @@ import (
 	"strings"
 )
 
+// rng is the package-level random source. In Go 1.20+ the global rand is
+// automatically seeded, but tests need deterministic output. rand.Seed is
+// deprecated; instead tests call SetRand with a seeded source.
+var rng = rand.New(rand.NewSource(1))
+
+// SetRand replaces the package-level random source. Used by tests for
+// deterministic output; production code leaves the auto-seeded source.
+func SetRand(r *rand.Rand) { rng = r }
+
 // AWGParams are the junk/transport obfuscation parameters written into the
 // awg-quick .conf [Interface] section. Jc/Jmin/Jmax control junk-packet
 // insertion ahead of the handshake; S1-S4 are transport padding sizes; H1-H4
@@ -37,19 +46,19 @@ func randInt(lo, hi int) int {
 	if hi <= lo {
 		return lo
 	}
-	return lo + rand.Intn(hi-lo+1)
+	return lo + rng.Intn(hi-lo+1)
 }
 
 // Profile ranges, ported from pumbaX/awg-multi-script gen_awg_params.
 // Lite = light obfuscation, Standard = medium, Pro = heavy.
 type profileRanges struct {
-	jcmin, jcmax         int
-	jminLo, jminHi       int
-	jmaxLo, jmaxHi       int
-	s1Lo, s1Hi           int
-	s2Lo, s2Hi           int
-	s3Lo, s3Hi           int
-	s4Lo, s4Hi           int
+	jcmin, jcmax   int
+	jminLo, jminHi int
+	jmaxLo, jmaxHi int
+	s1Lo, s1Hi     int
+	s2Lo, s2Hi     int
+	s3Lo, s3Hi     int
+	s4Lo, s4Hi     int
 }
 
 func rangesFor(p ObfProfile) (profileRanges, error) {
@@ -71,9 +80,9 @@ func rangesFor(p ObfProfile) (profileRanges, error) {
 // is 2^31-1 for Windows-client compatibility.
 func quadrant(n int) (lo, hi int) {
 	const (
-		hMin   = 5
-		hMax   = 2147483647 // 2^31 - 1
-		span   = 1 << 29    // 2^29
+		hMin = 5
+		hMax = 2147483647 // 2^31 - 1
+		span = 1 << 29    // 2^29
 	)
 	lo = hMin + n*span
 	hi = lo + span - 1

@@ -128,11 +128,11 @@ func (p *Process) Start() error {
 	}
 	out, err := awgQuick("up", p.configPath)
 	if err != nil {
-		p.logWriter.Write(out)
+		_, _ = p.logWriter.Write(out)
 		return fmt.Errorf("awg-quick up %s: %w\n%s", p.configPath, err, string(out))
 	}
 	if len(out) > 0 {
-		p.logWriter.Write(out)
+		_, _ = p.logWriter.Write(out)
 	}
 	logger.Infof("awg: interface %s brought up", p.ifname)
 	return nil
