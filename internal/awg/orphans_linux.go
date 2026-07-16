@@ -3,6 +3,7 @@
 package awg
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"strconv"
@@ -29,7 +30,7 @@ func killStrayAwgInterfaces() int {
 		if !strings.HasPrefix(name, "awg") {
 			continue
 		}
-		if err := exec.Command("ip", "link", "del", name).Run(); err == nil {
+		if err := exec.CommandContext(context.Background(), "ip", "link", "del", name).Run(); err == nil {
 			killed++
 		}
 	}

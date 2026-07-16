@@ -3,6 +3,7 @@
 package awg
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 )
@@ -14,7 +15,7 @@ import (
 // uses the rule but iptables will simply fail to match, which is logged but
 // non-fatal).
 func defaultRouteInterface() string {
-	out, err := exec.Command("ip", "-o", "-4", "route", "show", "default").Output()
+	out, err := exec.CommandContext(context.Background(), "ip", "-o", "-4", "route", "show", "default").Output()
 	if err != nil {
 		return ""
 	}

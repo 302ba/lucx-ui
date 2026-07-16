@@ -18,14 +18,14 @@ import (
 // interface, its obfuscation parameters, and the set of peers that should be
 // present. The manager drives the running kernel interface toward this state.
 type Instance struct {
-	Id      int
-	Tag     string
-	Listen  string
-	Port    int
-	Ifname  string // e.g. "awg1"
-	MTU     int
-	DNS     string
-	Address string // server tunnel address, e.g. "10.8.0.1/24"; written to [Interface].Address
+	Id         int
+	Tag        string
+	Listen     string
+	Port       int
+	Ifname     string // e.g. "awg1"
+	MTU        int
+	DNS        string
+	Address    string // server tunnel address, e.g. "10.8.0.1/24"; written to [Interface].Address
 	PrivateKey string
 	// Obfuscation (matches AWGParams fields; sourced from inbound.Settings).
 	Jc   int
@@ -106,35 +106,35 @@ func InstanceFromInbound(ib *model.Inbound) (Instance, bool) {
 		return Instance{}, false
 	}
 	var s struct {
-		PrivateKey string `json:"privateKey"`
-		MTU        int    `json:"mtu"`
-		DNS        string `json:"dns"`
-		Address    string `json:"address"`
-		Jc         int    `json:"jc"`
-		Jmin       int    `json:"jmin"`
-		Jmax       int    `json:"jmax"`
-		S1         int    `json:"s1"`
-		S2         int    `json:"s2"`
-		S3         int    `json:"s3"`
-		S4         int    `json:"s4"`
-		H1         string `json:"h1"`
-		H2         string `json:"h2"`
-		H3         string `json:"h3"`
-		H4         string `json:"h4"`
-		I1         string `json:"i1"`
-		I2         string `json:"i2"`
-		I3         string `json:"i3"`
-		I4         string `json:"i4"`
-		I5         string `json:"i5"`
+		PrivateKey       string `json:"privateKey"`
+		MTU              int    `json:"mtu"`
+		DNS              string `json:"dns"`
+		Address          string `json:"address"`
+		Jc               int    `json:"jc"`
+		Jmin             int    `json:"jmin"`
+		Jmax             int    `json:"jmax"`
+		S1               int    `json:"s1"`
+		S2               int    `json:"s2"`
+		S3               int    `json:"s3"`
+		S4               int    `json:"s4"`
+		H1               string `json:"h1"`
+		H2               string `json:"h2"`
+		H3               string `json:"h3"`
+		H4               string `json:"h4"`
+		I1               string `json:"i1"`
+		I2               string `json:"i2"`
+		I3               string `json:"i3"`
+		I4               string `json:"i4"`
+		I5               string `json:"i5"`
 		RouteThroughXray bool   `json:"routeThroughXray"`
 		OutboundTag      string `json:"outboundTag"`
 		Clients          []struct {
 			// New canonical fields (mirror WireGuard clients).
-			PublicKey   string   `json:"publicKey"`
-			PrivateKey  string   `json:"privateKey"`
-			PreSharedKey string  `json:"preSharedKey"`
-			AllowedIPs  []string `json:"allowedIPs"`
-			KeepAlive   int      `json:"keepAlive"`
+			PublicKey    string   `json:"publicKey"`
+			PrivateKey   string   `json:"privateKey"`
+			PreSharedKey string   `json:"preSharedKey"`
+			AllowedIPs   []string `json:"allowedIPs"`
+			KeepAlive    int      `json:"keepAlive"`
 			// Legacy fields kept for backward compat (old inbounds created
 			// before this change store id=publicKey, password=PSK). The JSON
 			// tag `enable` defaults to false when absent — but the panel
@@ -151,31 +151,31 @@ func InstanceFromInbound(ib *model.Inbound) (Instance, bool) {
 		return Instance{}, false
 	}
 	inst := Instance{
-		Id:         ib.Id,
-		Tag:        ib.Tag,
-		Listen:     ib.Listen,
-		Port:       ib.Port,
-		Ifname:     ifnameFor(ib.Id),
-		MTU:        orDefault(s.MTU, 1320),
-		DNS:        s.DNS,
-		Address:    s.Address,
-		PrivateKey: s.PrivateKey,
-		Jc:         s.Jc,
-		Jmin:       s.Jmin,
-		Jmax:       s.Jmax,
-		S1:         s.S1,
-		S2:         s.S2,
-		S3:         s.S3,
-		S4:         s.S4,
-		H1:         s.H1,
-		H2:         s.H2,
-		H3:         s.H3,
-		H4:         s.H4,
-		I1:         s.I1,
-		I2:         s.I2,
-		I3:         s.I3,
-		I4:         s.I4,
-		I5:         s.I5,
+		Id:               ib.Id,
+		Tag:              ib.Tag,
+		Listen:           ib.Listen,
+		Port:             ib.Port,
+		Ifname:           ifnameFor(ib.Id),
+		MTU:              orDefault(s.MTU, 1320),
+		DNS:              s.DNS,
+		Address:          s.Address,
+		PrivateKey:       s.PrivateKey,
+		Jc:               s.Jc,
+		Jmin:             s.Jmin,
+		Jmax:             s.Jmax,
+		S1:               s.S1,
+		S2:               s.S2,
+		S3:               s.S3,
+		S4:               s.S4,
+		H1:               s.H1,
+		H2:               s.H2,
+		H3:               s.H3,
+		H4:               s.H4,
+		I1:               s.I1,
+		I2:               s.I2,
+		I3:               s.I3,
+		I4:               s.I4,
+		I5:               s.I5,
 		RouteThroughXray: s.RouteThroughXray,
 		OutboundTag:      s.OutboundTag,
 	}

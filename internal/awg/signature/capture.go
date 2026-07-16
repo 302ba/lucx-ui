@@ -8,6 +8,7 @@ package signature
 
 import (
 	"bytes"
+	"context"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hkdf"
@@ -17,7 +18,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"context"
 	"net"
 	"net/url"
 	"strings"

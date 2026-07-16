@@ -7,6 +7,7 @@
 package awg
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -24,7 +25,7 @@ const awgConfigDir = "/etc/amnezia/amneziawg"
 // awgQuick wraps an `awg-quick <verb> <confPath>` invocation, returning the
 // combined stdout+stderr output.
 func awgQuick(verb, confPath string) ([]byte, error) {
-	return exec.Command("awg-quick", verb, confPath).CombinedOutput()
+	return exec.CommandContext(context.Background(), "awg-quick", verb, confPath).CombinedOutput()
 }
 
 // configPathForID returns the .conf path for an inbound. Mirrors the mtproto

@@ -72,7 +72,7 @@ func TestGenerateCPS_ExplicitDomain(t *testing.T) {
 }
 
 func TestGenerateCPS_DNSHasR2Prefix(t *testing.T) {
-	rand.Seed(3)
+	SetRand(rand.New(rand.NewSource(3)))
 	r, err := GenerateCPS(ProfileDNS, RegionWorld, "example.com", true)
 	if err != nil {
 		t.Fatal(err)
@@ -83,7 +83,7 @@ func TestGenerateCPS_DNSHasR2Prefix(t *testing.T) {
 }
 
 func TestGenerateCPS_NonDNSNoR2Prefix(t *testing.T) {
-	rand.Seed(5)
+	SetRand(rand.New(rand.NewSource(5)))
 	for _, mp := range []MimicryProfile{ProfileTLS, ProfileSIP, ProfileQUIC} {
 		r, err := GenerateCPS(mp, RegionWorld, "example.com", true)
 		if err != nil {

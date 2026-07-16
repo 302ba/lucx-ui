@@ -105,7 +105,6 @@ func TestParseSSHOutput_GarbageInput(t *testing.T) {
 	}
 }
 
-
 func TestParseSSHOutput_ANSIColors(t *testing.T) {
 	// Simulates actual SSH output with ANSI color codes from install script
 	input := "\033[0;32mUsername:    admin12345\033[0m\n" +
@@ -128,6 +127,7 @@ func TestParseSSHOutput_ANSIColors(t *testing.T) {
 		t.Errorf("expected tok123, got %s", creds.APIToken)
 	}
 }
+
 func TestParseSSHOutput_PartialOutput_URLOnly(t *testing.T) {
 	input := `Access URL:  https://5.9.1.2:8443/mybase
 Username:    myuser`
