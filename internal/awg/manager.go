@@ -8,6 +8,7 @@ package awg
 
 import (
 	"fmt"
+	"net/netip"
 	"os"
 	"os/exec"
 	"strings"
@@ -245,6 +246,63 @@ func writeServerConfigFile(inst Instance) error {
 	return os.WriteFile(configPathForID(inst.Id), []byte(conf), 0o600)
 }
 
+// clientSubnet extracts the network prefix (e.g. "10.8.0.0/24") from the
+// server's tunnel Address (e.g. "10.8.0.1/24"). Returns empty when Address is
+// unset or unparseable, in which case NAT rules are skipped.
+func clientSubnet(address string) string {
+	address = strings.TrimSpace(address)
+	if address == "" {
+		return ""
+	}
+	prefix, err := netip.ParsePrefix(address)
+	if err != nil {
+		return ""
+	}
+	return prefix.Masked().String()
+}
+
+// natPostUpPostDown builds the PostUp/PostDown pair that wires kernel routing
+// for an AWG interface when it is NOT routed through Xray. Without these rules
+// the kernel forwards decrypted client packets with their private source
+// (e.g. 10.8.0.x) unchanged, so replies never come back: ip_forward is off by
+// default and no MASQUERADE exists. This mirrors the standard WireGuard /
+// pumbaX awg-multi-script setup. When routeThroughXray is set, Xray owns the
+// routing via an injected TUN inbound, so we skip these rules to avoid double
+// NAT and conflicting iptables state.
+func natPostUpPostDown(inst Instance) (postUp, postDown string) {
+	if inst.RouteThroughXray {
+		return "", ""
+	}
+	subnet := clientSubnet(inst.Address)
+	if subnet == "" {
+		return "", ""
+	}
+	extIface := defaultRouteInterface()
+	if extIface == "" {
+		return "", ""
+	}
+	iface := inst.Ifname
+	postUp = fmt.Sprintf(
+		"echo 1 > /proc/sys/net/ipv4/ip_forward; "+
+			"iptables -t nat -C POSTROUTING -s %s -o %s -j MASQUERADE 2>/dev/null || "+
+			"iptables -t nat -A POSTROUTING -s %s -o %s -j MASQUERADE; "+
+			"iptables -C FORWARD -i %s -j ACCEPT 2>/dev/null || "+
+			"iptables -A FORWARD -i %s -j ACCEPT; "+
+			"iptables -C FORWARD -o %s -j ACCEPT 2>/dev/null || "+
+			"iptables -A FORWARD -o %s -j ACCEPT",
+		subnet, extIface, subnet, extIface,
+		iface, iface, iface, iface,
+	)
+	postDown = fmt.Sprintf(
+		"iptables -t nat -D POSTROUTING -s %s -o %s -j MASQUERADE 2>/dev/null || true; "+
+			"iptables -D FORWARD -i %s -j ACCEPT 2>/dev/null || true; "+
+			"iptables -D FORWARD -o %s -j ACCEPT 2>/dev/null || true",
+		subnet, extIface,
+		iface, iface,
+	)
+	return postUp, postDown
+}
+
 // renderServerConf builds the awg-quick .conf for an instance, reading from
 // the Instance struct (desired runtime state) rather than the inbound's
 // stored JSON.
@@ -277,6 +335,10 @@ func renderServerConf(inst Instance) string {
 	// tags in setconf input. The client sends CPS packets before the
 	// handshake for DPI evasion; the server ignores them. (Matches
 	// pumbaX/awg-multi-script: server .conf has Jc/S/H only, never I1-I5.)
+	if postUp, postDown := natPostUpPostDown(inst); postUp != "" {
+		fmt.Fprintf(&b, "PostUp = %s\n", postUp)
+		fmt.Fprintf(&b, "PostDown = %s\n", postDown)
+	}
 	for _, p := range inst.Peers {
 		b.WriteString("\n[Peer]\n")
 		fmt.Fprintf(&b, "PublicKey = %s\n", p.PublicKey)

@@ -392,6 +392,26 @@ amneziawg://OKtt7...%3D@localhost:15963?address=10.8.0.2%2F32&dns=1.1.1.1...&h1=
 
 ---
 
+## Фикс: NAT (PostUp/PostDown) для kernel-routing режима (2026-07-16, v3.5.0-lucx.20)
+
+**Проблема:** без `routeThroughXray` (kernel routing) клиенты подключаются, но трафика нет. Причина: ядро поднимает `awgN`, но `net.ipv4.ip_forward` выключен и нет MASQUERADE → пакеты от клиентов (src `10.8.0.x`) не форвардятся и не натятся → ответ не возвращается.
+
+**Решение:** `renderServerConf` теперь генерирует `PostUp`/`PostDown` прямо в `.conf` (как pumbaX/awg-multi-script):
+```
+PostUp   = echo 1 > /proc/sys/net/ipv4/ip_forward; iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; iptables -A FORWARD -i awg1 -j ACCEPT; iptables -A FORWARD -o awg1 -j ACCEPT
+PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; iptables -D FORWARD -i awg1 -j ACCEPT; iptables -D FORWARD -o awg1 -j ACCEPT
+```
+
+Правила добавляются только когда `!RouteThroughXray` (при routeThroughXray Xray владеет роутингом через TUN inbound — двойной NAT ни к чему). Внешний интерфейс определяется через `ip -o -4 route show default` (build-tag split: `nat_linux.go` / `nat_other.go`). Подсеть клиента извлекается из `Address` через `netip.ParsePrefix().Masked()`.
+
+**Новые файлы:** `internal/awg/nat_linux.go`, `internal/awg/nat_other.go`
+**Новые функции:** `defaultRouteInterface()`, `clientSubnet()`, `natPostUpPostDown()`
+**Тесты:** `TestClientSubnet`, `TestRenderServerConf_NoPostUpWhenRoutedThroughXray`, `TestRenderServerConf_NoPostUpWhenNoAddress`, `TestNatPostUpPostDown_EmptyWhenNoDefaultRoute`
+
+**lucxVersion** → `lucx.20`.
+
+---
+
 ## Заметки
 
 - v3.5.0 релиз 2026-07-12 (вчера)

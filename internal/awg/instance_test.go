@@ -198,3 +198,58 @@ func TestIfnameFor(t *testing.T) {
 		t.Fatalf("ifnameFor(42) = %s", got)
 	}
 }
+
+func TestClientSubnet(t *testing.T) {
+	cases := []struct {
+		in, want string
+	}{
+		{"10.8.0.1/24", "10.8.0.0/24"},
+		{"10.0.0.5/16", "10.0.0.0/16"},
+		{"192.168.1.1/32", "192.168.1.1/32"},
+		{"", ""},
+		{"garbage", ""},
+		{"10.8.0.1", ""},
+	}
+	for _, c := range cases {
+		got := clientSubnet(c.in)
+		if got != c.want {
+			t.Errorf("clientSubnet(%q) = %q, want %q", c.in, got, c.want)
+		}
+	}
+}
+
+func TestRenderServerConf_NoPostUpWhenRoutedThroughXray(t *testing.T) {
+	inst := Instance{
+		Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320,
+		Address: "10.8.0.1/24", RouteThroughXray: true,
+	}
+	conf := renderServerConf(inst)
+	if strings.Contains(conf, "PostUp") {
+		t.Errorf("PostUp must be absent when routeThroughXray is set, got:\n%s", conf)
+	}
+	if strings.Contains(conf, "PostDown") {
+		t.Errorf("PostDown must be absent when routeThroughXray is set, got:\n%s", conf)
+	}
+}
+
+func TestRenderServerConf_NoPostUpWhenNoAddress(t *testing.T) {
+	inst := Instance{
+		Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320,
+		RouteThroughXray: false,
+	}
+	conf := renderServerConf(inst)
+	if strings.Contains(conf, "PostUp") {
+		t.Errorf("PostUp must be absent when Address is empty, got:\n%s", conf)
+	}
+}
+
+func TestNatPostUpPostDown_EmptyWhenNoDefaultRoute(t *testing.T) {
+	inst := Instance{
+		Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320,
+		Address: "10.8.0.1/24", RouteThroughXray: false,
+	}
+	postUp, postDown := natPostUpPostDown(inst)
+	if postUp != "" || postDown != "" {
+		t.Errorf("on non-Linux (no default route), PostUp/PostDown must be empty, got up=%q down=%q", postUp, postDown)
+	}
+}
