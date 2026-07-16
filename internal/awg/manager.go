@@ -19,13 +19,13 @@ import (
 )
 
 type managed struct {
-	proc       *Process
-	tag        string
+	proc        *Process
+	tag         string
 	fingerprint string
-	ifname     string
+	ifname      string
 	// Traffic baselines per peer public key, so CollectTraffic returns deltas.
-	lastRx map[string]int64
-	lastTx map[string]int64
+	lastRx   map[string]int64
+	lastTx   map[string]int64
 	haveLast bool
 }
 
@@ -161,12 +161,12 @@ func (m *Manager) StopAll() {
 // and returns the per-inbound byte deltas since the previous scrape.
 func (m *Manager) CollectTraffic() []Traffic {
 	type snap struct {
-		id      int
-		ifname  string
-		tag     string
+		id       int
+		ifname   string
+		tag      string
 		haveLast bool
-		lastRx  map[string]int64
-		lastTx  map[string]int64
+		lastRx   map[string]int64
+		lastTx   map[string]int64
 	}
 	m.mu.Lock()
 	snaps := make([]snap, 0, len(m.procs))

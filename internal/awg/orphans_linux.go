@@ -37,5 +37,7 @@ func killStrayAwgInterfaces() int {
 	return killed
 }
 
-var _ = strconv.Itoa
-var _ = syscall.Kill
+var (
+	_ = strconv.Itoa
+	_ = syscall.Kill
+)

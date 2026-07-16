@@ -8,6 +8,7 @@ package awg
 
 import (
 	"bufio"
+	"context"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -32,7 +33,7 @@ type Traffic struct {
 // tx is bytes sent to the peer (download). Returns the summed rx/tx across all
 // peers and ok=false if the interface is down or awg is unavailable.
 func scrapeTransfer(ifname string) (rx, tx int64, ok bool) {
-	cmd := exec.Command("awg", "show", ifname, "transfer")
+	cmd := exec.CommandContext(context.Background(), "awg", "show", ifname, "transfer")
 	out, err := cmd.Output()
 	if err != nil {
 		return 0, 0, false
