@@ -251,7 +251,8 @@ func (s *PanelService) startUpdate(useDev bool) (int64, error) {
 
 	if systemdRun, err := exec.LookPath("systemd-run"); err == nil {
 		unitName := fmt.Sprintf("x-ui-web-update-%d", time.Now().Unix())
-		cmd := exec.CommandContext(context.Background(), systemdRun,
+		cmd := exec.CommandContext(
+			context.Background(), systemdRun,
 			"--unit", unitName,
 			"--setenv", "XUI_MAIN_FOLDER="+mainFolder,
 			"--setenv", "XUI_SERVICE="+serviceFolder,
@@ -277,7 +278,8 @@ func (s *PanelService) startUpdate(useDev bool) (int64, error) {
 	}
 
 	cmd := exec.CommandContext(context.Background(), bash, "-lc", updateScript)
-	cmd.Env = append(os.Environ(),
+	cmd.Env = append(
+		os.Environ(),
 		"XUI_MAIN_FOLDER="+mainFolder,
 		"XUI_SERVICE="+serviceFolder,
 		"XUI_UPDATE_TAG="+updateTag,

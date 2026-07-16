@@ -8,10 +8,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mhsanaei/3x-ui/v3/internal/awg" // LUCX-HOOK: AWG sidecar
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/mtproto"
 	"github.com/mhsanaei/3x-ui/v3/internal/xray"
-	"github.com/mhsanaei/3x-ui/v3/internal/awg" // LUCX-HOOK: AWG sidecar
 )
 
 type LocalDeps struct {

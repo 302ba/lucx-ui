@@ -704,6 +704,7 @@ func injectAwgEgress(cfg *xray.Config, inbound *model.Inbound) {
 		Tag:      tag,
 	})
 }
+
 // END LUCX-HOOK
 
 // mergeSubscriptionOutbounds appends the subscription outbounds to the

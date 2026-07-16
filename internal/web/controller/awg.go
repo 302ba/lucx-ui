@@ -21,11 +21,11 @@ import (
 // the pool); fullI1I5 reports whether I1-I5 are all emitted (Pro) or just I1
 // (Lite/Standard).
 type awgGenerateObfuscationRequest struct {
-	ObfProfile      string `json:"obfProfile"`
-	MimicryProfile  string `json:"mimicryProfile"`
-	Region          string `json:"region"`
-	Domain          string `json:"domain"`
-	FullI1I5        bool   `json:"fullI1I5"`
+	ObfProfile     string `json:"obfProfile"`
+	MimicryProfile string `json:"mimicryProfile"`
+	Region         string `json:"region"`
+	Domain         string `json:"domain"`
+	FullI1I5       bool   `json:"fullI1I5"`
 }
 
 // awgGenerateObfuscation generates a fresh set of AmneziaWG obfuscation
@@ -66,22 +66,22 @@ func (a *InboundController) awgGenerateObfuscation(c *gin.Context) {
 		return
 	}
 	jsonObj(c, gin.H{
-		"jc":  params.Jc,
+		"jc":   params.Jc,
 		"jmin": params.Jmin,
 		"jmax": params.Jmax,
-		"s1":  params.S1,
-		"s2":  params.S2,
-		"s3":  params.S3,
-		"s4":  params.S4,
-		"h1":  params.H1,
-		"h2":  params.H2,
-		"h3":  params.H3,
-		"h4":  params.H4,
-		"i1":  cpsResult.I1,
-		"i2":  cpsResult.I2,
-		"i3":  cpsResult.I3,
-		"i4":  cpsResult.I4,
-		"i5":  cpsResult.I5,
+		"s1":   params.S1,
+		"s2":   params.S2,
+		"s3":   params.S3,
+		"s4":   params.S4,
+		"h1":   params.H1,
+		"h2":   params.H2,
+		"h3":   params.H3,
+		"h4":   params.H4,
+		"i1":   cpsResult.I1,
+		"i2":   cpsResult.I2,
+		"i3":   cpsResult.I3,
+		"i4":   cpsResult.I4,
+		"i5":   cpsResult.I5,
 	}, nil)
 }
 
@@ -122,4 +122,5 @@ func (a *InboundController) awgCaptureHost(c *gin.Context) {
 		"i5": res.I5,
 	}, nil)
 }
+
 // END LUCX-HOOK

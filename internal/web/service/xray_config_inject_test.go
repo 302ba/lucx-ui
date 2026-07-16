@@ -226,7 +226,8 @@ func TestInjectPanelEgress_BalancerTag(t *testing.T) {
 
 func TestInjectPanelEgress_PortCollision(t *testing.T) {
 	cfg := egressTestConfig()
-	cfg.InboundConfigs = append(cfg.InboundConfigs,
+	cfg.InboundConfigs = append(
+		cfg.InboundConfigs,
 		xray.InboundConfig{Port: panelEgressBasePort, Protocol: "vless", Tag: "in-1"},
 		xray.InboundConfig{Port: panelEgressBasePort + 1, Protocol: "vless", Tag: "in-2"},
 	)
@@ -239,7 +240,8 @@ func TestInjectPanelEgress_PortCollision(t *testing.T) {
 
 func TestInjectPanelEgress_TagCollisionSkips(t *testing.T) {
 	cfg := egressTestConfig()
-	cfg.InboundConfigs = append(cfg.InboundConfigs,
+	cfg.InboundConfigs = append(
+		cfg.InboundConfigs,
 		xray.InboundConfig{Port: 1234, Protocol: "socks", Tag: PanelEgressInboundTag},
 	)
 	before := string(cfg.RouterConfig)
@@ -482,4 +484,5 @@ func TestInjectAwgEgress_DefaultMTUAndGateway(t *testing.T) {
 		t.Errorf("expected default gateway [10.8.0.1] when address is unset, got %v", settings.Gateway)
 	}
 }
+
 // END LUCX-HOOK

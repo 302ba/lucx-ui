@@ -309,7 +309,7 @@ type InboundOption struct {
 	// can build a full AmneziaWG client config (mirrors the WG hints above).
 	AwgServerAddress string `json:"awgServerAddress,omitempty"`
 	AwgObfuscation   string `json:"awgObfuscation,omitempty"`
-	MtprotoDomain  string `json:"mtprotoDomain,omitempty"`
+	MtprotoDomain    string `json:"mtprotoDomain,omitempty"`
 	// Hosting node; nil for this panel's own inbounds. Lets the clients
 	// page map a node filter onto inbound IDs (#4997).
 	NodeId *int `json:"nodeId,omitempty"`
@@ -369,24 +369,24 @@ func (s *InboundService) GetInboundOptions(userId int) ([]InboundOption, error) 
 		}
 		out = append(out, InboundOption{
 			Id:                r.Id,
-			Remark:             r.Remark,
-			Tag:                r.Tag,
-			Protocol:           r.Protocol,
-			Port:               r.Port,
-			Enable:             r.Enable,
-			TlsFlowCapable:     inboundCanEnableTlsFlow(r.Protocol, r.StreamSettings, r.Settings),
-			SsMethod:           inboundShadowsocksMethod(r.Protocol, r.Settings),
-			WgPublicKey:        wgPublicKey,
-			WgMtu:              wgMtu,
-			WgDns:              wgDns,
-			AwgServerAddress:   awgAddr,
-			AwgObfuscation:     awgObf,
-			MtprotoDomain:      inboundMtprotoDomain(r.Protocol, r.Settings),
-			NodeId:             r.NodeId,
-			NodeAddress:        r.NodeAddress,
-			Listen:             r.Listen,
-			ShareAddr:          r.ShareAddr,
-			ShareAddrStrategy:  shareAddrStrategy,
+			Remark:            r.Remark,
+			Tag:               r.Tag,
+			Protocol:          r.Protocol,
+			Port:              r.Port,
+			Enable:            r.Enable,
+			TlsFlowCapable:    inboundCanEnableTlsFlow(r.Protocol, r.StreamSettings, r.Settings),
+			SsMethod:          inboundShadowsocksMethod(r.Protocol, r.Settings),
+			WgPublicKey:       wgPublicKey,
+			WgMtu:             wgMtu,
+			WgDns:             wgDns,
+			AwgServerAddress:  awgAddr,
+			AwgObfuscation:    awgObf,
+			MtprotoDomain:     inboundMtprotoDomain(r.Protocol, r.Settings),
+			NodeId:            r.NodeId,
+			NodeAddress:       r.NodeAddress,
+			Listen:            r.Listen,
+			ShareAddr:         r.ShareAddr,
+			ShareAddrStrategy: shareAddrStrategy,
 		})
 	}
 	return out, nil
@@ -508,6 +508,7 @@ func inboundAwgHints(settings string) (address string, obfuscation string) {
 	}
 	return s.Address, out.String()
 }
+
 // END LUCX-HOOK
 
 // inboundMtprotoDomain returns the inbound-level FakeTLS default domain, used by

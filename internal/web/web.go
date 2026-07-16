@@ -16,11 +16,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mhsanaei/3x-ui/v3/internal/awg" // LUCX-HOOK: AWG sidecar
 	"github.com/mhsanaei/3x-ui/v3/internal/config"
 	"github.com/mhsanaei/3x-ui/v3/internal/eventbus"
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
 	"github.com/mhsanaei/3x-ui/v3/internal/mtproto"
-	"github.com/mhsanaei/3x-ui/v3/internal/awg" // LUCX-HOOK: AWG sidecar
 	"github.com/mhsanaei/3x-ui/v3/internal/util/common"
 	"github.com/mhsanaei/3x-ui/v3/internal/util/sys"
 	"github.com/mhsanaei/3x-ui/v3/internal/web/controller"
@@ -377,7 +377,7 @@ func (s *Server) startTask(restartXray bool) {
 
 	// Telegram-bot–dependent jobs: periodic stats report + callback-hash cleanup.
 	isTgbotenabled, err := s.settingService.GetTgbotEnabled()
-	if (err == nil) && (isTgbotenabled) {
+	if (err == nil) && isTgbotenabled {
 		runtime, err := s.settingService.GetTgbotRuntime()
 		if err != nil {
 			logger.Warningf("Add NewStatsNotifyJob: failed to load runtime: %v; using default @daily", err)
@@ -667,7 +667,7 @@ func (s *Server) start(restartXray bool, startTgBot bool) (err error) {
 
 	if startTgBot {
 		isTgbotenabled, err := s.settingService.GetTgbotEnabled()
-		if (err == nil) && (isTgbotenabled) {
+		if (err == nil) && isTgbotenabled {
 			tgBot := s.tgbotService.NewTgbot()
 			_ = tgBot.Start(i18nFS)
 			// Subscribe Telegram notifications for event bus
