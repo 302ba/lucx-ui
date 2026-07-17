@@ -53,7 +53,11 @@ AWG:      awg kernel module        → IP   → TUN inbound             → Xray
 9. VERIFY  → Check `sudo systemctl status x-ui`, check server logs
 10. COMMIT → `git add` specific files, `git commit` with descriptive message (Russian)
 11. STATUS → Output `git status` and `git log --oneline -15` after commits
-12. DOCS   → Update progress.md and this file if architecture changes
+12. DOCS   → ВСЕГДА актуализируй progress.md и AGENTS.md. Каждый коммит — новая
+             запись в progress.md (что сделано, какой lucxVersion, какие файлы,
+             какие тесты). При изменении архитектуры — обнови AGENTS.md
+             (Architecture Map, Known Issues, Debug Patterns). НЕ оставляй
+             пробелов: если сделал фикс — запиши его. Файлы — закон проекта.
 ```
 
 ---
