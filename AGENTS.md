@@ -53,6 +53,14 @@ AWG:      awg kernel module        → IP   → TUN inbound             → Xray
 9. VERIFY  → Check `sudo systemctl status x-ui`, check server logs
 10. COMMIT → `git add` specific files, `git commit` with descriptive message (Russian)
 11. STATUS → Output `git status` and `git log --oneline -15` after commits
+11.5. CHECK PR/ISSUES → ПЕРЕД пушем ВСЕГДА проверяй открытые PR и issues:
+             `gh pr list --repo AlexeyLCP/lucx-ui --state open`
+             `gh issue list --repo AlexeyLCP/lucx-ui --state open`
+             Если есть необработанные PR (не от тебя) или issues — НЕ пушь
+             сразу. Сообщи пользователю: какие PR/issues открыты, кем, и
+             предложи: (а) сначала проверить/смержить PR, (б) сначала
+             исправить issue, (в) пушить после. Не пушь молча поверх
+             чужого PR — можно затереть или сломать чужую работу.
 12. DOCS   → ВСЕГДА актуализируй progress.md и AGENTS.md. Каждый коммит — новая
              запись в progress.md (что сделано, какой lucxVersion, какие файлы,
              какие тесты). При изменении архитектуры — обнови AGENTS.md
