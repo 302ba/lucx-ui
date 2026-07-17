@@ -448,6 +448,95 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 ---
 
+## Фикс: golangci-lint (25 ошибок) + TUN gateway из Address (2026-07-16, v3.5.0-lucx.22–28)
+
+**CI lint:** 25 ошибок в LucX-коде:
+- errcheck (3): непроверенные `logWriter.Write`, `binary.Write`
+- gofumpt (много): выравнивание во всех LucX-файлах с LUCX-HOOK блоками + новых файлах
+- noctx (5): `exec.Command` → `CommandContext`, `net.LookupIP` → `Resolver.LookupIPAddr`, `net.DialTimeout` → `Dialer.DialContext`
+- staticcheck (5): `rand.Seed` deprecation → пакетный `rng` + `SetRand`, `info.String()`, `len()` nil-check
+- unused (3): удалены `bindTo`, `formatTransfer`, `dtlsDomains`
+- usestdlibvars (6): `http.MethodGet/StatusNotFound/StatusOK` в detector.go
+
+**Тесты CI:** `TestGetPanelVersion` (версия), `TestAPIRoutesDocumented` (2 endpoint'а — generateObfuscation + captureHost в endpoints.ts), `TestInjectAwgEgress_*` (gateway), `TestNatPostUpPostDown` (Linux default route).
+
+**DNS из серверного .conf убран** (lucx.21): DNS — клиентская настройка, серверу не нужна. pumbaX никогда не пишет DNS в серверный конфиг.
+
+**Пустой outboundTag = "котел Xray"** (lucx.27–29): при пустом `outboundTag` routing rule не добавляется — TUN-трафик попадает в общий routing pipeline Xray (sniffing/domain/balancer). Явный outboundTag = перехват всего трафика в конкретный outbound. i18n: placeholder "Использовать правила маршрутизации". Select с явной опцией `value=""`.
+
+**lucxVersion** → `lucx.28`.
+
+---
+
+## Фикс: routeThroughXray — policy routing + /30 TUN subnet (2026-07-16, v3.5.0-lucx.25)
+
+**Проблема:** при routeThroughXrayXray создаёт TUN inbound (tunN), но пакеты из AWG kernel interface (awgN) не попадают в tunN — нет маршрута. Plain route `ip route replace <subnet> dev tunN` направляет пакеты destiné в подсеть, а не от неё.
+
+**Решение:** policy routing в PostUp:
+- `ip rule add from <subnet> lookup 100` — все пакеты от клиентов идут в table 100
+- `ip route replace default dev tunN table 100` — table 100 направляет всё в tunN
+- Retry-loop ждёт появления tunN (10 попыток по 1с)
+
+**TUN gateway в отдельной /30 подсети:** `10.254.254.1/30` — не конфликтует с AWG subnet (10.8.0.0/24). Раньше gateway брался из DNS (1.1.1.1) — неправильно, Xray отвергал bare IP ("invalid CIDR address"). Потом брался из Address (10.8.0.1) — конфликтовал с awgN. Финал: фиксированная /30.
+
+**lucxVersion** → `lucx.25`.
+
+---
+
+## Фикс: routeThroughXray — needRestart, iif policy routing, reconcile-ensure (2026-07-16, v3.5.0-lucx.30, PR #13)
+
+**Симптом:** при включении тумблера «Маршрутизировать через Xray» на AWG-инбаунде у клиентов пропадал интернет. В тестах маршрут правильный, на практике — нет. Доменные правила маршрутизации для AWG-трафика не срабатывали вовсе.
+
+**Рут-козы (четыре независимые):**
+
+1. **Тоггл не перегенерировал конфиг Xray.** `needRestart` поднимался только для MTProto (`mtprotoRoutesThroughXray`) — AWG-путь обновления шёл целиком в kernel-sidecar (`runtime/local.go`), Xray не перезапускался, `injectAwgEgress` не выполнялся → TUN-инбаунд не появлялся. При этом PostUp routeThroughXray-ветки убирает MASQUERADE → трафик клиентов уходил в eth0 с приватным src без NAT → мёртвый интернет.
+2. **Маршрут в таблице умирал при каждом рестарте Xray** (tunN пересоздаётся, device-bound route удаляется ядром), а одноразовый PostUp retry-loop (10×1с) проигрывал гонку 30-секундному cron-рестарту и не переживал последующие рестарты.
+3. **Фиксированные таблица (100) и gateway (10.254.254.1/30)** ломали конфигурацию с двумя routed-инбаундами (затирали друг друга), а `from <subnet>`-правило дополнительно захватывало server-originated трафик с адресом awgN.
+4. **Роутер не видел домены AWG-трафика.** На инжектируемом TUN-инбаунде не включён sniffing → роутер матчит только IP. Любые `domain:`/`geosite:`-правила для AWG-трафика молча не срабатывали.
+
+**Решение (PR #13 от rudenko-ks):**
+
+- `inbound.go`: `awgRoutesThroughXray` (зеркало mtproto-хелпера) + `needRestart` в `AddInbound`/`DelInbound`/`UpdateInbound` (`oldRoutedAwg`)/`SetInboundEnable` (в enable-тоггл добавлен и mtproto — та же латентная дыра).
+- `manager.go`: PostUp — статическая половина: ip_forward, loose rp_filter на awgN, FORWARD accepts для awgN и tunN, `ip rule add iif awgN lookup 1000+N` (iif вместо from — не трогает server-originated трафик). Маршрутом владеет `ensureXrayRouting` из reconcile-цикла (каждые 10с): `ip route replace default dev tunN table 1000+N` + loose rp_filter на tunN + самовосстановление ip rule. Молча no-op, пока tunN отсутствует.
+- `xray.go` `injectAwgEgress`: gateway per-inbound `10.254.(N%254).1/30` (`awgTunGateway`) вместо фиксированного; на TUN-инбаунд навешен sniffing `{http,tls,quic, routeOnly:true}` — без него доменные/geosite-правила роутера для AWG-трафика молча не срабатывали (роутер видел только IP). `routeOnly` оставляет снифф домена подсказкой для роутинга, адрес назначения не подменяется.
+
+**Тесты:** `TestAwgRouteTable`, `TestRenderServerConf_RouteThroughXrayPolicyRouting`, `TestNatPostUpPostDown_RouteThroughXrayPerInbound`, `TestEnsureXrayRoutingCmds`, `TestRuleMissing`, `TestAwgRoutesThroughXray`, `TestAddInbound_RoutedAwgForcesXrayRegen`, `TestAddInbound_PlainAwgDoesNotForceRegen`, `TestDelInbound_RoutedAwgForcesXrayRegen`, `TestSetInboundEnable_DisableRoutedAwgForcesXrayRegen`, `TestInjectAwgEgress_PerInboundGateway`, `TestInjectAwgEgress_SniffingRouteOnly`.
+
+**lucxVersion** → `lucx.30`.
+
+---
+
+## Фича: пресеты TLS ClientHello для Firefox и Safari (2026-07-16, v3.5.0-lucx.31)
+
+**Контекст:** `buildTLSClientHello` в `cps.go` генерировал только Chrome-like ClientHello. Добавлены browser-специфичные пресеты для DPI evasion.
+
+**Backend:**
+- `domains.go`: `BrowserProfile` type (`chrome`/`firefox`/`safari`)
+- `cps.go`: разбит на `buildChromeHello`/`buildFirefoxHello`/`buildSafariHello`:
+  - **Chrome** — GREASE в cipher suites и extensions, compress_certificate, ALPS, padding 0-48
+  - **Firefox 120+** — NSS cipher ordering (включая ECDHE CBC), delegated_credentials extension, padding до 512 байт. Нет GREASE, нет compress_certificate, нет ALPS
+  - **Safari 16+** — Apple SecureTransport cipher ordering (включая DHE и legacy CBC), secp521r1, TLS 1.1 advertised. Нет GREASE, нет padding, нет compress_certificate
+- `GenerateCPS` принимает `browser BrowserProfile`, передаёт в `tlsPacket`
+- `controller/awg.go`: `generateObfuscation` принимает `browserProfile`, default `chrome`
+- QUIC (`quicInitialPacket`) использует `buildChromeHello` (QUIC всегда Chrome-форму)
+- Helper'ы `writeSupportedGroupsExt`/`writeSigAlgsExt`/`writeSupportedVersionsExt`/`writeKeyShareExt` параметризованы (`grease bool`, `algs []uint16`)
+
+**Новое в `cps.go`:** `writeSupportedGroupsExtSafari` (x25519, secp256r1, secp384r1, secp521r1), `writeSupportedVersionsExtSafari` (0x0304, 0x0303, 0x0302), `writeKeyShareExtSafari` (x25519 + secp256r1), `writeDelegatedCredentialsExt`, `wrapHandshake`, `padTo512`. Переменные `chromeSigAlgs`/`firefoxSigAlgs`/`safariSigAlgs`.
+
+**Frontend:**
+- `awg.ts` schema: `browserProfile: z.enum(['chrome','firefox','safari']).default('chrome')`
+- `awg.tsx` form: Select видим только при `mimicryProfile === 'tls'`, опции "Chrome (последняя)", "Firefox 120+", "Safari 16+"
+- `inbound-defaults.ts`: `browserProfile: 'chrome'` default
+- i18n: 5 ключей (`awgBrowserProfile`, `awgBrowserProfileHint`, `awgBrowserChrome`, `awgBrowserFirefox`, `awgBrowserSafari`)
+
+**Источник данных:** `bogdanfinn/tls-client` (профили Firefox_120/Firefox_133, Safari_16_0), перенесено вручную без новой зависимости. `bogdanfinn/tls-client` — HTTP-клиент для веб-скрапинга с обходом antibot, построен на `refraction-networking/utls`. Для AWG не подходит напрямую (нужны сырые байты ClientHello, не HTTP-клиент), но профили — репрезентативны.
+
+**Тесты:** `TestGenerateCPS_AllBrowsersNonEmpty`, `TestBuildFirefoxHello_NoGrease`, `TestBuildSafariHello_NoGrease`, `TestBuildChromeHello_HasGrease`, `TestBuildFirefoxHello_HasPadding512`, `TestBuildSafariHello_HasTls11`. Все 12 CPS-тестов проходят.
+
+**lucxVersion** → `lucx.31`.
+
+---
+
 ## Заметки
 
 - v3.5.0 релиз 2026-07-12 (вчера)
