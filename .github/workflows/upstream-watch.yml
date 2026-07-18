@@ -1,0 +1,56 @@
+name: Upstream watch
+
+# LUCX-HOOK: weekly check for new upstream 3x-ui releases. Compares the latest
+# MHSanaei/3x-ui release tag with our embedded base version
+# (internal/config/version) and opens an issue when they diverge — the trigger
+# for the migration procedure (AGENTS.md rule 8). Idempotent: no duplicate
+# issues while one for the same tag is already open.
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Monday 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Compare upstream latest with our base version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          UPSTREAM=$(gh api repos/MHSanaei/3x-ui/releases/latest --jq .tag_name)
+          BASE="v$(tr -d '[:space:]' < internal/config/version)"
+          echo "upstream=$UPSTREAM base=$BASE"
+          if [ "$UPSTREAM" = "$BASE" ]; then
+            echo "in sync — nothing to do"
+            exit 0
+          fi
+
+          TITLE="Upstream $UPSTREAM released — migration needed (base: $BASE)"
+          OPEN=$(gh issue list --repo "${{ github.repository }}" --state open \
+            --search "in:title \"$UPSTREAM\"" --json number --jq length)
+          if [ "$OPEN" -gt 0 ]; then
+            echo "issue for $UPSTREAM already open — not duplicating"
+            exit 0
+          fi
+
+          gh issue create --repo "${{ github.repository }}" \
+            --title "$TITLE" \
+            --body "Upstream [MHSanaei/3x-ui](https://github.com/MHSanaei/3x-ui) released **$UPSTREAM**; our base is **$BASE**.
+
+Migration procedure (AGENTS.md rule 8):
+1. Fresh branch from \`origin/main\`
+2. \`git checkout <old-branch> -- <isolated-lucx-files>\`
+3. Manually re-apply LUCX-HOOK blocks to changed upstream files
+4. \`go build ./internal/awg/... ./internal/lucx/...\` + tests + frontend typecheck
+5. Bump \`internal/config/version\` if upstream changed it
+
+Changelog: https://github.com/MHSanaei/3x-ui/releases/tag/$UPSTREAM
+
+_File opened automatically by the upstream-watch workflow._"
