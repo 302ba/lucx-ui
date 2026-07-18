@@ -368,3 +368,45 @@ func TestNatPostUpPostDown_ContainsMasquerade(t *testing.T) {
 		t.Errorf("PostDown must contain MASQUERADE, got %q", postDown)
 	}
 }
+
+func TestNatRulesFor(t *testing.T) {
+	inst := Instance{
+		Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320,
+		Address: "10.8.0.1/24", RouteThroughXray: false,
+	}
+	rules := natRulesFor(inst, "eth0")
+	if len(rules) != 3 {
+		t.Fatalf("natRulesFor = %d rules, want 3: %+v", len(rules), rules)
+	}
+	masq := strings.Join(rules[0].spec, " ")
+	if rules[0].table != "nat" || rules[0].chain != "POSTROUTING" ||
+		!strings.Contains(masq, "-s 10.8.0.0/24") || !strings.Contains(masq, "-o eth0") ||
+		!strings.Contains(masq, "MASQUERADE") {
+		t.Errorf("rule[0] must MASQUERADE 10.8.0.0/24 out eth0, got %s %s %s", rules[0].table, rules[0].chain, masq)
+	}
+	fwdIn := strings.Join(rules[1].spec, " ")
+	fwdOut := strings.Join(rules[2].spec, " ")
+	if !strings.Contains(fwdIn, "-i awg1") || !strings.Contains(fwdOut, "-o awg1") {
+		t.Errorf("FORWARD rules must cover both awg1 legs, got %q / %q", fwdIn, fwdOut)
+	}
+}
+
+func TestNatRulesFor_SkipsUnroutable(t *testing.T) {
+	base := Instance{Id: 1, Ifname: "awg1", Port: 47000, PrivateKey: "k", MTU: 1320, Address: "10.8.0.1/24"}
+
+	routed := base
+	routed.RouteThroughXray = true
+	if got := natRulesFor(routed, "eth0"); got != nil {
+		t.Errorf("routeThroughXray must skip NAT (Xray owns routing), got %+v", got)
+	}
+
+	noAddr := base
+	noAddr.Address = ""
+	if got := natRulesFor(noAddr, "eth0"); got != nil {
+		t.Errorf("empty Address must skip NAT, got %+v", got)
+	}
+
+	if got := natRulesFor(base, ""); got != nil {
+		t.Errorf("no external interface must skip NAT, got %+v", got)
+	}
+}

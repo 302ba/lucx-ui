@@ -66,6 +66,7 @@ func (m *Manager) Ensure(inst Instance) error {
 		return err
 	}
 	m.ensureXrayRouting(inst)
+	m.ensureNatRules(inst)
 	return nil
 }
 
@@ -150,6 +151,7 @@ func (m *Manager) Reconcile(desired []Instance) {
 			continue
 		}
 		m.ensureXrayRouting(inst)
+		m.ensureNatRules(inst)
 	}
 }
 
@@ -419,6 +421,62 @@ func natPostUpPostDown(inst Instance) (postUp, postDown string) {
 		iface, iface,
 	)
 	return postUp, postDown
+}
+
+// natRule is one idempotent iptables rule: probed with `-t <table> -C <chain>
+// <spec>` and appended with `-A` only when the probe fails.
+type natRule struct {
+	table string
+	chain string
+	spec  []string
+}
+
+// natRulesFor returns the rule set a kernel-routed (non-routeThroughXray)
+// instance needs: MASQUERADE of the client subnet out the external interface,
+// plus FORWARD accepts for both awgN legs. Nil when the instance is unroutable
+// (Xray-routed, no subnet, or no external interface).
+func natRulesFor(inst Instance, extIface string) []natRule {
+	subnet := clientSubnet(inst.Address)
+	if inst.RouteThroughXray || subnet == "" || extIface == "" {
+		return nil
+	}
+	return []natRule{
+		{"nat", "POSTROUTING", []string{"-s", subnet, "-o", extIface, "-j", "MASQUERADE"}},
+		{"filter", "FORWARD", []string{"-i", inst.Ifname, "-j", "ACCEPT"}},
+		{"filter", "FORWARD", []string{"-o", inst.Ifname, "-j", "ACCEPT"}},
+	}
+}
+
+// ensureNatRules converges the iptables NAT state of a kernel-routed instance.
+// Like ensureXrayRouting it must run periodically: PostUp installs the rules
+// once, but anything that flushes iptables (fail2ban reload, docker starting,
+// admin intervention) silently kills client internet until the interface is
+// restarted. A no-op while awgN is absent and for routeThroughXray instances
+// (no NAT there — Xray terminates flows in its TUN netstack).
+func (m *Manager) ensureNatRules(inst Instance) {
+	if inst.RouteThroughXray {
+		return
+	}
+	if err := exec.CommandContext(context.Background(), "ip", "link", "show", inst.Ifname).Run(); err != nil {
+		return
+	}
+	rules := natRulesFor(inst, defaultRouteInterface())
+	if len(rules) == 0 {
+		return
+	}
+	if err := exec.CommandContext(context.Background(), "sysctl", "-qw", "net.ipv4.ip_forward=1").Run(); err != nil {
+		logger.Warningf("awg: ensure ip_forward: %v", err)
+	}
+	for _, r := range rules {
+		check := append([]string{"-t", r.table, "-C", r.chain}, r.spec...)
+		if err := exec.CommandContext(context.Background(), "iptables", check...).Run(); err == nil {
+			continue
+		}
+		add := append([]string{"-t", r.table, "-A", r.chain}, r.spec...)
+		if out, err := exec.CommandContext(context.Background(), "iptables", add...).CombinedOutput(); err != nil {
+			logger.Warningf("awg: ensure nat (iptables %s): %v\n%s", strings.Join(add, " "), err, string(out))
+		}
+	}
 }
 
 // renderServerConf builds the awg-quick .conf for an instance, reading from
