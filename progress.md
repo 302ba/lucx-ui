@@ -600,6 +600,8 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 **5. VPS lucx недоступен** — deploy lucx.33 отложен. Все порты (22/2053/443) фильтруются, ping не идёт: VM остановлена или ephemeral IP сменился (GCP). Нужна консоль GCP: поднять VM или обновить IP в `~/.ssh/config` (Host lucx). Deploy-процедура когда поднимется: tarball v3.5.0-lucx.33 с GitHub → распаковать → заменить `/usr/local/x-ui/x-ui` → `systemctl restart x-ui` → verify.
 
+**6. Тестовые серверы задокументированы.** Пользователь предоставил 2 IP: `144.31.224.212` (skinny-azure-snail.play2go.cloud) и `144.31.157.106` (poor-rose-snake.play2go.cloud). Доступ: `root` + `~/.ssh/id_ed25519` (НЕ id_rsa — Permission denied). SSH-алиасы `lucx-test1`/`lucx-test2` в `~/.ssh/config`, оба проверены. Состояние: test1 — панель **lucx.17** (старьё, до всех routing-фиксов lucx.20–33!), x-ui active, awg1 живой; test2 — **x-ui.service отсутствует вовсе** (панель не установлена/удалена), осиротевший awg0 — готовый кейс для orphan sweep + чистой установки. AGENTS.md → Deploy обновлён таблицей серверов.
+
 **lucxVersion** → без изменений (`lucx.33`; код панели не менялся).
 
 ---

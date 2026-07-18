@@ -263,11 +263,20 @@ cp bin/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
 
 ## Deploy
 
-- **Target:** `lucx` (SSH alias in `~/.ssh/config`, GCP Finland)
+- **Target:** `lucx` (SSH alias in `~/.ssh/config`, GCP Finland) — ⚠️ с 2026-07-18 недоступен (VM остановлена или ephemeral IP сменился, порты фильтруются; нужна консоль GCP)
 - **Service:** `x-ui.service` (systemd)
-- **Procedure:** SCP binary → `sudo systemctl restart x-ui` → verify `systemctl status x-ui` + logs
+- **Procedure:** SCP binary (или tarball релиза на самом сервере) → `sudo systemctl restart x-ui` → verify `systemctl status x-ui` + logs
 - **AWG runtime check:** `awg show` should list active interfaces; `ip link show awgN` for TUN
-- **Testers:** VladufQa (ruvds-rdu8b), Kirill Rudenko (runode) — обновляются через `x-ui update` или reinstall
+
+### Тестовые серверы (SSH alias'ы в `~/.ssh/config`, user `root`, ключ `~/.ssh/id_ed25519`)
+
+| Alias | IP | Хост | Назначение |
+|---|---|---|---|
+| `lucx-test1` | 144.31.224.212 | skinny-azure-snail.play2go.cloud | Боевая тестовая панель (x-ui active, AWG работает) |
+| `lucx-test2` | 144.31.157.106 | poor-rose-snake.play2go.cloud | Чистая машина для install-тестов (x-ui не установлен; осиротевший awg0 от старого запуска — кейс для orphan sweep) |
+
+- **Testers:** VladufQa, Kirill Rudenko — обновляются через `x-ui update` или reinstall. По состоянию на 2026-07-18: test1 на lucx.17 (старьё до routing-фиксов), test2 без панели.
+- Ничего не менять на test1 без запроса — там живой инбаунд тестеров. test2 можно использовать для чистой установки (`install.sh` из README) — заодно проверяет релизный tarball и DKMS на свежем ядре.
 
 ---
 
