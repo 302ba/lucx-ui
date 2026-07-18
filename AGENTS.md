@@ -398,6 +398,11 @@ Not to re-add: tun2socks (заменено TUN inbound), DNS в серверны
 - **Cause:** `awg-quick` не установлен или kernel module не загружен.
 - **Fix:** `bin/install-awg-module.sh` на сервере. Проверить `awg show`, `ip link show awgN`.
 
+### Pattern 1b: AWG inbound не стартует после апгрейда — "iptables: command not found"
+- **Cause:** Debian 13+ не ставит iptables из коробки (только nftables). PostUp с MASQUERADE/FORWARD (появился в lucx.20) падает с exit 127 → awg-quick откатывается → awgN не поднимается вообще. Бьёт по инсталляциям, обновлённым с версий < lucx.20 (iptables не требовался раньше). В логах: `awg-quick: line 295: iptables: command not found` + `reconcile failed ... exit status 127`.
+- **Fix:** `apt-get install -y iptables` (ставит shim над nf_tables — наши правила работают прозрачно). Reconcile поднимет интерфейс сам за ≤10 с. Свежие установки покрыты: `bin/install-awg-module.sh` ставит iptables как зависимость (с 2026-07-18).
+- **Наблюдали:** lucx-test1 (144.31.224.212) при апгрейде lucx.17 → lucx.33, 2026-07-18.
+
 ### Pattern 2: LUCX-HOOK конфликт при upstream sync
 - **Cause:** Upstream изменил файл с HOOK-маркером между релизами.
 - **Fix:** Сравнить старую и новую версию upstream-файла, вручную перенести HOOK-блок в новую структуру. Не `git checkout` весь файл — потеряешь upstream-изменения.

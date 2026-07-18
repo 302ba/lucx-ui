@@ -602,6 +602,12 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 **6. Тестовые серверы задокументированы.** Пользователь предоставил 2 IP: `144.31.224.212` (skinny-azure-snail.play2go.cloud) и `144.31.157.106` (poor-rose-snake.play2go.cloud). Доступ: `root` + `~/.ssh/id_ed25519` (НЕ id_rsa — Permission denied). SSH-алиасы `lucx-test1`/`lucx-test2` в `~/.ssh/config`, оба проверены. Состояние: test1 — панель **lucx.17** (старьё, до всех routing-фиксов lucx.20–33!), x-ui active, awg1 живой; test2 — **x-ui.service отсутствует вовсе** (панель не установлена/удалена), осиротевший awg0 — готовый кейс для orphan sweep + чистой установки. AGENTS.md → Deploy обновлён таблицей серверов.
 
+**7. Деплой на тестовые серверы — оба на lucx.33.**
+
+- **test2 — чистая установка end-to-end ✅.** `install.sh` из README: релизный tarball скачался (фикс `/releases/latest` работает в бою), DKMS собрал `amneziawg/1.0.0` под kernel 6.12.90 (Debian 13 trixie), модуль загружен, awg/awg-quick на месте, панель active, `3.5.0-lucx.33`. Осиротевший awg0 убран (не пережил DKMS/reload). Панель: `http://144.31.157.106:1360/rJzisfkxRTqHGhACTn` (креды в install-логе сервера).
+- **test1 — апгрейд lucx.17 → lucx.33 ✅** (бэкап бинарника `x-ui.bak-lucx17`, tarball, restart). После рестарта **awg1 не поднялся**: PostUp падал с `iptables: command not found` (exit 127) — Debian 13 не ставит iptables из коробки, а NAT-PostUp появился только в lucx.20 → при апгрейде со старых версий это deployment-ловушка. Фикс: `apt install iptables` (shim над nf_tables) → reconcile поднял awg1 сам за ≤10 с, пиры + MASQUERADE на месте, порт 51820.
+- **Код-фикс:** `bin/install-awg-module.sh` теперь ставит `iptables` как зависимость (рядом с openresolv) — свежие установки покрыты. AGENTS.md: новый Debug Pattern 1b с симптомами и фиксом.
+
 **lucxVersion** → без изменений (`lucx.33`; код панели не менялся).
 
 ---

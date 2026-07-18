@@ -48,6 +48,13 @@ apt-get install -y -q build-essential dkms git unzip curl 2>/dev/null || true
 # Без него awg-quick up падает с "resolvconf: command not found".
 apt-get install -y -q openresolv 2>/dev/null || echo -e "${YELLOW}openresolv не установлен — awg-quick может падать на DNS=${NC}"
 
+# iptables — PostUp панели ставит MASQUERADE/FORWARD через iptables.
+# На Debian 13+ iptables отсутствует из коробки (только nftables), и
+# awg-quick up падает с "iptables: command not found" (exit 127) — интерфейс
+# вообще не поднимается. Пакет iptables ставит shim над nf_tables, наши
+# правила работают через него прозрачно.
+apt-get install -y -q iptables 2>/dev/null || echo -e "${YELLOW}iptables не установлен — kernel NAT (PostUp) будет падать${NC}"
+
 # 2. Install kernel headers — универсальная логика с fallback
 RUNNING_KERNEL=$(uname -r)
 echo -e "${GREEN}Ядро: ${RUNNING_KERNEL}${NC}"
