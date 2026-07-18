@@ -1,0 +1,73 @@
+#!/bin/bash
+# Copyright (c) 2025 LucX-UI Project.
+# Licensed under the PolyForm Noncommercial License 1.0.0.
+# LucX-UI Component. Free for personal and educational use.
+# Commercial use (including VPN resale) requires explicit written permission from the author.
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
+# =============================================================================
+# LucX-UI: git pre-push hook — AGENTS.md шаги 6 (тесты) и 11.5 (PR/issues).
+#
+# Установка:  cp bin/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+#
+# Что делает:
+#   1. gofumpt-проверка LucX-файлов (bin/check-lucx.sh) — CI ловит это иначе.
+#   2. Быстрые Go-тесты изолированных пакетов (awg, lucx, config) — ~5 секунд.
+#   3. Открытые PR и issues на AlexeyLCP/lucx-ui (AGENTS.md шаг 11.5):
+#      чужой необработанный PR — БЛОКИРУЕТ пуш (можно затереть чужую работу),
+#      issues — только предупреждение.
+#
+# Обойти в крайнем случае: git push --no-verify
+# =============================================================================
+set -uo pipefail
+
+REPO="AlexeyLCP/lucx-ui"
+ROOT="$(git rev-parse --show-toplevel)"
+cd "$ROOT"
+
+RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'; NC='\033[0m'
+
+fail=0
+
+echo -e "${YELLOW}[pre-push] gofumpt...${NC}"
+if ! bin/check-lucx.sh; then
+    fail=1
+fi
+
+echo -e "${YELLOW}[pre-push] go test (awg, lucx, config)...${NC}"
+if ! go test ./internal/awg/... ./internal/lucx/... ./internal/config/... -count=1 >/dev/null 2>&1; then
+    echo -e "${RED}[pre-push] тесты упали:${NC}"
+    go test ./internal/awg/... ./internal/lucx/... ./internal/config/... -count=1 2>&1 | grep -E "FAIL|panic" | head -10
+    fail=1
+else
+    echo -e "${GREEN}[pre-push] тесты OK${NC}"
+fi
+
+if command -v gh >/dev/null 2>&1; then
+    echo -e "${YELLOW}[pre-push] проверка PR/issues на $REPO...${NC}"
+    PRS=$(gh pr list --repo "$REPO" --state open --json number,title,author 2>/dev/null || echo "[]")
+    NPRS=$(echo "$PRS" | grep -c '"number"' || true)
+    if [ "$NPRS" -gt 0 ]; then
+        echo -e "${RED}[pre-push] открытые PR ($NPRS) — сначала проверь/смержи (AGENTS.md шаг 11.5):${NC}"
+        echo "$PRS" | grep -oE '"number":[0-9]+|"title":"[^"]*"|"login":"[^"]*"' | paste - - - | sed 's/"number":/  #/; s/"title"://; s/"login":/ @/; s/"//g'
+        fail=1
+    fi
+    ISSUES=$(gh issue list --repo "$REPO" --state open --json number,title 2>/dev/null || echo "[]")
+    NISSUES=$(echo "$ISSUES" | grep -c '"number"' || true)
+    if [ "$NISSUES" -gt 0 ]; then
+        echo -e "${YELLOW}[pre-push] открытые issues ($NISSUES) — не блокируют, но посмотри:${NC}"
+        echo "$ISSUES" | grep -oE '"number":[0-9]+|"title":"[^"]*"' | paste - - | sed 's/"number":/  #/; s/"title"://; s/"//g'
+    fi
+    if [ "$NPRS" -eq 0 ] && [ "$NISSUES" -eq 0 ]; then
+        echo -e "${GREEN}[pre-push] PR/issues чисто${NC}"
+    fi
+else
+    echo -e "${YELLOW}[pre-push] gh CLI не найден — проверка PR/issues пропущена${NC}"
+fi
+
+if [ "$fail" -ne 0 ]; then
+    echo -e "${RED}[pre-push] ПУШ ОТМЕНЁН. Исправь проблемы выше или git push --no-verify${NC}"
+    exit 1
+fi
+echo -e "${GREEN}[pre-push] все проверки пройдены${NC}"
+exit 0

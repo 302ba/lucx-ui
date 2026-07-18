@@ -8,6 +8,7 @@
 .serena/
 .windsurfrules
 .zcode/
+.playwright-mcp/
 .cache/
 .sync*
 

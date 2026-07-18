@@ -15,7 +15,11 @@ permissions:
 jobs:
   gremlins:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    # LUCX-HOOK: 120 минут не хватает матрице (service/database упирались в
+    # таймаут и job отменялся GitHub'ом как cancelled) — поднимаем до 360,
+    # максимума для hosted runner'ов.
+    timeout-minutes: 360
+    # END LUCX-HOOK
     strategy:
       fail-fast: false
       matrix:
