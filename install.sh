@@ -1687,6 +1687,18 @@ install_x-ui() {
     if [[ -x bin/install-awg-module.sh ]]; then
         echo -e "${green}Installing AmneziaWG kernel module and tools...${plain}"
         bash bin/install-awg-module.sh || echo -e "${red}AWG install failed — AWG inbounds will be unavailable until manually fixed.${plain}"
+        # Post-check: the module script is best-effort (set -e + network/make can
+        # abort it silently). If awg-quick is still missing, surface it loudly in
+        # the final install output instead of letting the admin discover it from
+        # "awg-quick: executable file not found" reconcile warnings later.
+        if ! command -v awg-quick &>/dev/null; then
+            echo -e "${red}╔══════════════════════════════════════════════════════╗${plain}"
+            echo -e "${red}║  AWG: awg-quick НЕ установлен!                       ║${plain}"
+            echo -e "${red}║  AWG-инбаунды не поднимутся (reconcile будет падать). ║${plain}"
+            echo -e "${red}║  Дособрать: apt install build-essential, затем       ║${plain}"
+            echo -e "${red}║  bash bin/install-awg-module.sh                      ║${plain}"
+            echo -e "${red}╚══════════════════════════════════════════════════════╝${plain}"
+        fi
     fi
     # END LUCX-HOOK
 

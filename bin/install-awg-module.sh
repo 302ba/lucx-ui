@@ -130,16 +130,26 @@ if [[ ! -d /sys/module/amneziawg ]]; then
     echo -e "${GREEN}Модуль ядра собран и установлен.${NC}"
 fi
 
-# 4. Build and install userspace tools
-if ! command -v awg &>/dev/null; then
+# 4. Build and install userspace tools (awg + awg-quick, both from src/)
+if ! command -v awg-quick &>/dev/null; then
     echo -e "${GREEN}Сборка утилит awg...${NC}"
     TOOLS_DIR="/tmp/amneziawg-tools-$$"
     rm -rf "$TOOLS_DIR"
-    git clone --depth 1 https://github.com/amnezia-vpn/amneziawg-tools.git "$TOOLS_DIR"
-    cd "$TOOLS_DIR/src"
-    make && make install
-    cd /tmp; rm -rf "$TOOLS_DIR"
-    echo -e "${GREEN}Утилиты awg установлены.${NC}"
+    if git clone --depth 1 https://github.com/amnezia-vpn/amneziawg-tools.git "$TOOLS_DIR" 2>&1; then
+        ( cd "$TOOLS_DIR/src" && make && make install ) \
+            && echo -e "${GREEN}Утилиты awg установлены.${NC}" \
+            || echo -e "${RED}Сборка утилит awg упала — проверь build-essential (apt install build-essential). AWG не стартует без awg-quick.${NC}"
+        cd /tmp; rm -rf "$TOOLS_DIR"
+    else
+        echo -e "${RED}Не удалось клонировать amneziawg-tools (сеть/GitHub?). AWG не стартует без awg-quick.${NC}"
+    fi
+fi
+
+# Sanity: both binaries must exist now — a silent miss here is how panels end up
+# with a running kernel module but no awg-quick (reconcile fails every 10s).
+if ! command -v awg-quick &>/dev/null; then
+    echo -e "${RED}ВНИМАНИЕ: awg-quick не найден после установки. AWG-инбаунды не поднимутся.${NC}"
+    echo -e "${RED}Дособрать вручную: apt install build-essential && cd /tmp && git clone --depth 1 https://github.com/amnezia-vpn/amneziawg-tools.git && cd amneziawg-tools/src && make && make install${NC}"
 fi
 
 # 5. Load module and enable autostart
