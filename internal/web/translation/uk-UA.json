@@ -693,7 +693,21 @@
           "node": "Адреса вузла",
           "listen": "Адреса прослуховування inbound",
           "custom": "Користувацька"
-        }
+        },
+        "awgBrowserProfile": "Профіль браузера",
+        "awgBrowserProfileHint": "TLS-відбиток якого браузера імітувати для TLS-профілю. Chrome використовує GREASE; Firefox — NSS-порядок із паддінгом; Safari — Apple-порядок.",
+        "awgBrowserChrome": "Chrome (остання)",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "Діагностика",
+        "awgDiagnosticsHint": "Перевірка живого стану ядра без змін: інтерфейс, ip_forward, піри/рукостискання та правила NAT або TUN-маршрутизації.",
+        "awgDiagRun": "Запустити діагностику",
+        "awgDiagSaveFirst": "Спочатку збережіть інбаунд — діагностиці потрібен працюючий сайдкар",
+        "awgDiagTitle": "Діагностика AWG",
+        "awgDiagRefresh": "Оновити",
+        "awgDiagHealthy": "Усі перевірки пройдено — сайдкар і маршрутизація в порядку.",
+        "awgDiagUnhealthy": "Знайдено проблеми. Reconcile-цикл відновлює NAT/TUN кожні 10 с — повторіть за кілька секунд; постійні помилки потребують втручання на сервері.",
+        "awgDiagFailed": "Не вдалося завантажити діагностику"
       },
       "info": {
         "mode": "Режим",

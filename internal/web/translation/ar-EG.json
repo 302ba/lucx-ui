@@ -693,7 +693,21 @@
         "bytesPerSec": "بايت في الثانية",
         "bytesPerSecTip": "حد السرعة (بايت/ثانية) المطبّق على مرور الـ fallback بعد العتبة، عشان الفحوصات ماتقدرش تستخدم سيرفرك كنطاق ترددي مجاني للهدف. 0 = بلا حد (بيعطّل الاتجاه ده).",
         "burstBytesPerSec": "بايت في الثانية للدفقة",
-        "burstBytesPerSecTip": "السماح بدفقات قصيرة فوق المعدل الثابت (حجم token-bucket). لو أقل من بايت في الثانية بيترفع ليطابقه."
+        "burstBytesPerSecTip": "السماح بدفقات قصيرة فوق المعدل الثابت (حجم token-bucket). لو أقل من بايت في الثانية بيترفع ليطابقه.",
+        "awgBrowserProfile": "ملف المتصفح",
+        "awgBrowserProfileHint": "بصمة TLS للمتصفح المراد محاكاتها لملف TLS. يستخدم Chrome تقنية GREASE؛ ويستخدم Firefox ترتيب NSS مع padding؛ ويستخدم Safari ترتيب Apple.",
+        "awgBrowserChrome": "Chrome (الأحدث)",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "التشخيص",
+        "awgDiagnosticsHint": "فحص قراءة فقط لحالة النواة الحية: الواجهة، ip_forward، peers/المصافحات، وقواعد NAT أو توجيه TUN.",
+        "awgDiagRun": "تشغيل التشخيص",
+        "awgDiagSaveFirst": "احفظ الإنباوند أولاً — يحتاج التشخيص إلى sidecar يعمل",
+        "awgDiagTitle": "تشخيص AWG",
+        "awgDiagRefresh": "تحديث",
+        "awgDiagHealthy": "اجتازت جميع الفحوصات — الـ sidecar والتوجيه بحالة جيدة.",
+        "awgDiagUnhealthy": "وُجدت مشاكل. حلقة reconcile تعيد تطبيق NAT/TUN كل 10 ثوانٍ — أعد التشغيل بعد ثوانٍ؛ الأعطال المستمرة تتطلب تدخلاً على الخادم.",
+        "awgDiagFailed": "فشل تحميل التشخيص"
       },
       "info": {
         "mode": "الوضع",

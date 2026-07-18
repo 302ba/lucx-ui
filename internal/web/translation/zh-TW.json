@@ -693,7 +693,21 @@
           "node": "節點地址",
           "listen": "入站監聽地址",
           "custom": "自訂"
-        }
+        },
+        "awgBrowserProfile": "瀏覽器設定檔",
+        "awgBrowserProfileHint": "TLS 設定檔要模擬的瀏覽器 TLS 指紋。Chrome 使用 GREASE；Firefox 使用含填充的 NSS 順序；Safari 使用 Apple 順序。",
+        "awgBrowserChrome": "Chrome（最新）",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "診斷",
+        "awgDiagnosticsHint": "唯讀探測核心即時狀態：介面、ip_forward、對等節點/握手以及 NAT 或 TUN 路由規則。",
+        "awgDiagRun": "執行診斷",
+        "awgDiagSaveFirst": "請先儲存入站 — 診斷需要執行中的 sidecar",
+        "awgDiagTitle": "AWG 執行時期診斷",
+        "awgDiagRefresh": "重新整理",
+        "awgDiagHealthy": "所有檢查通過 — sidecar 與路由正常。",
+        "awgDiagUnhealthy": "發現問題。reconcile 迴圈每 10 秒重新套用 NAT/TUN 狀態 — 請幾秒後重試；持續失敗需要伺服器端處理。",
+        "awgDiagFailed": "診斷載入失敗"
       },
       "info": {
         "mode": "模式",

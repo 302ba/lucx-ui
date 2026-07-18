@@ -693,7 +693,21 @@
           "node": "Địa chỉ node",
           "listen": "Địa chỉ listen inbound",
           "custom": "Tùy chỉnh"
-        }
+        },
+        "awgBrowserProfile": "Hồ sơ trình duyệt",
+        "awgBrowserProfileHint": "Dấu vân tay TLS của trình duyệt cần bắt chước cho hồ sơ TLS. Chrome dùng GREASE; Firefox dùng thứ tự NSS với padding; Safari dùng thứ tự Apple.",
+        "awgBrowserChrome": "Chrome (mới nhất)",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "Chẩn đoán",
+        "awgDiagnosticsHint": "Thăm dò chỉ-đọc trạng thái kernel: giao diện, ip_forward, peer/handshake và các quy tắc NAT hoặc TUN.",
+        "awgDiagRun": "Chạy chẩn đoán",
+        "awgDiagSaveFirst": "Lưu inbound trước — chẩn đoán cần sidecar đang chạy",
+        "awgDiagTitle": "Chẩn đoán AWG",
+        "awgDiagRefresh": "Làm mới",
+        "awgDiagHealthy": "Mọi kiểm tra đều đạt — sidecar và định tuyến bình thường.",
+        "awgDiagUnhealthy": "Phát hiện sự cố. Vòng lặp reconcile áp lại NAT/TUN mỗi 10 giây — chạy lại sau vài giây; lỗi kéo dài cần xử lý trên máy chủ.",
+        "awgDiagFailed": "Không tải được chẩn đoán"
       },
       "info": {
         "mode": "Chế độ",

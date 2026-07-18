@@ -693,7 +693,21 @@
           "node": "آدرس نود",
           "listen": "آدرس شنود ورودی",
           "custom": "سفارشی"
-        }
+        },
+        "awgBrowserProfile": "پروفایل مرورگر",
+        "awgBrowserProfileHint": "اثر انگشت TLS مرورگری که برای پروفایل TLS تقلید می‌شود. Chrome از GREASE استفاده می‌کند؛ Firefox از ترتیب NSS با padding؛ Safari از ترتیب Apple.",
+        "awgBrowserChrome": "Chrome (آخرین)",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "تشخیص",
+        "awgDiagnosticsHint": "بررسی فقط‌خواندنی وضعیت زنده کرنل: رابط، ip_forward، peerها/Handshakeها و قواعد NAT یا TUN.",
+        "awgDiagRun": "اجرای تشخیص",
+        "awgDiagSaveFirst": "ابتدا inbound را ذخیره کنید — تشخیص به sidecar در حال اجرا نیاز دارد",
+        "awgDiagTitle": "تشخیص AWG",
+        "awgDiagRefresh": "تازه‌سازی",
+        "awgDiagHealthy": "همه بررسی‌ها موفق بود — sidecar و مسیریابی سالم‌اند.",
+        "awgDiagUnhealthy": "مشکلاتی یافت شد. حلقه reconcile وضعیت NAT/TUN را هر ۱۰ ثانیه دوباره اعمال می‌کند — چند ثانیه بعد دوباره اجرا کنید؛ خطاهای مداوم نیاز به رسیدگی سمت سرور دارند.",
+        "awgDiagFailed": "بارگیری تشخیص ناموفق بود"
       },
       "info": {
         "mode": "حالت",

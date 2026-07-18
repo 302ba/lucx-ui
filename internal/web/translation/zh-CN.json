@@ -693,7 +693,21 @@
           "listen": "入站监听地址",
           "custom": "自定义"
         },
-        "verifyPeerCertByName": "按名称验证对端证书"
+        "verifyPeerCertByName": "按名称验证对端证书",
+        "awgBrowserProfile": "浏览器配置文件",
+        "awgBrowserProfileHint": "TLS 配置文件要模拟的浏览器 TLS 指纹。Chrome 使用 GREASE；Firefox 使用带填充的 NSS 顺序；Safari 使用 Apple 顺序。",
+        "awgBrowserChrome": "Chrome（最新）",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "诊断",
+        "awgDiagnosticsHint": "只读探测内核实时状态：接口、ip_forward、对等节点/握手以及 NAT 或 TUN 路由规则。",
+        "awgDiagRun": "运行诊断",
+        "awgDiagSaveFirst": "请先保存入站 — 诊断需要运行中的 sidecar",
+        "awgDiagTitle": "AWG 运行时诊断",
+        "awgDiagRefresh": "刷新",
+        "awgDiagHealthy": "所有检查通过 — sidecar 与路由正常。",
+        "awgDiagUnhealthy": "发现问题。reconcile 循环每 10 秒重新应用 NAT/TUN 状态 — 请几秒后重试；持续失败需要服务器端处理。",
+        "awgDiagFailed": "诊断加载失败"
       },
       "info": {
         "mode": "模式",

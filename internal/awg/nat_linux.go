@@ -1,11 +1,16 @@
 //go:build linux
 
+// Copyright (c) 2025 LucX-UI Project.
+// Licensed under the PolyForm Noncommercial License 1.0.0.
+// LucX-UI Component. Free for personal and educational use.
+// Commercial use (including VPN resale) requires explicit written permission from the author.
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 package awg
 
 import (
 	"context"
 	"os/exec"
-	"strings"
 )
 
 // defaultRouteInterface returns the name of the interface holding the default
@@ -19,11 +24,5 @@ func defaultRouteInterface() string {
 	if err != nil {
 		return ""
 	}
-	fields := strings.Fields(strings.TrimSpace(string(out)))
-	for i, f := range fields {
-		if f == "dev" && i+1 < len(fields) {
-			return fields[i+1]
-		}
-	}
-	return ""
+	return parseDefaultRouteInterface(string(out))
 }

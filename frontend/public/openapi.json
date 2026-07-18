@@ -3517,6 +3517,47 @@
         }
       }
     },
+    "/panel/api/inbounds/{id}/awgDiagnostics": {
+      "get": {
+        "tags": [
+          "Inbounds"
+        ],
+        "summary": "Probe the live kernel state of an AWG inbound (interface, ip_forward, peers/handshakes, plus MASQUERADE/FORWARD rules in kernel-nat mode or tunN/policy-rule/route-table chain in routeThroughXray mode). Read-only. LucX-UI only.",
+        "operationId": "get_panel_api_inbounds_id_awgDiagnostics",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Inbound ID. Must be an AWG inbound.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "msg": {
+                      "type": "string"
+                    },
+                    "obj": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/panel/api/inbounds/import": {
       "post": {
         "tags": [

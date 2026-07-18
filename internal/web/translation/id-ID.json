@@ -693,7 +693,21 @@
         "bytesPerSec": "Byte per detik",
         "bytesPerSecTip": "Batas kecepatan (byte/detik) yang diterapkan pada lalu lintas fallback setelah ambang batas, agar probe tidak dapat memakai server Anda sebagai bandwidth gratis menuju target. 0 = tanpa batas (menonaktifkan arah ini).",
         "burstBytesPerSec": "Byte per detik burst",
-        "burstBytesPerSecTip": "Kelonggaran untuk burst singkat di atas laju tetap (ukuran token-bucket). Jika lebih kecil dari Byte per detik, nilainya dinaikkan agar sama."
+        "burstBytesPerSecTip": "Kelonggaran untuk burst singkat di atas laju tetap (ukuran token-bucket). Jika lebih kecil dari Byte per detik, nilainya dinaikkan agar sama.",
+        "awgBrowserProfile": "Profil browser",
+        "awgBrowserProfileHint": "Sidik jari TLS browser yang ditiru untuk profil TLS. Chrome memakai GREASE; Firefox memakai urutan NSS dengan padding; Safari memakai urutan Apple.",
+        "awgBrowserChrome": "Chrome (terbaru)",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "Diagnostik",
+        "awgDiagnosticsHint": "Probe read-only dari status kernel: antarmuka, ip_forward, peer/handshake, dan aturan NAT atau TUN.",
+        "awgDiagRun": "Jalankan diagnostik",
+        "awgDiagSaveFirst": "Simpan inbound dulu — diagnostik membutuhkan sidecar yang berjalan",
+        "awgDiagTitle": "Diagnostik AWG",
+        "awgDiagRefresh": "Muat ulang",
+        "awgDiagHealthy": "Semua pemeriksaan lolos — sidecar dan routing sehat.",
+        "awgDiagUnhealthy": "Ditemukan masalah. Loop reconcile menerapkan ulang NAT/TUN setiap 10 detik — jalankan lagi setelah beberapa detik; kegagalan berulang perlu penanganan di server.",
+        "awgDiagFailed": "Gagal memuat diagnostik"
       },
       "info": {
         "mode": "Mode",

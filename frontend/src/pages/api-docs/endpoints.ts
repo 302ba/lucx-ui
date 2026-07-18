@@ -226,6 +226,16 @@ export const sections: readonly Section[] = [
           { name: 'region', in: 'body', type: 'string', desc: 'Domain pool region for fallback: "ru" or "world".' },
         ],
       },
+      // LUCX-HOOK: AWG runtime diagnostics endpoint documentation.
+      {
+        method: 'GET',
+        path: '/panel/api/inbounds/:id/awgDiagnostics',
+        summary: 'Probe the live kernel state of an AWG inbound (interface, ip_forward, peers/handshakes, plus MASQUERADE/FORWARD rules in kernel-nat mode or tunN/policy-rule/route-table chain in routeThroughXray mode). Read-only. LucX-UI only.',
+        params: [
+          { name: 'id', in: 'path', type: 'number', desc: 'Inbound ID. Must be an AWG inbound.' },
+        ],
+      },
+      // END LUCX-HOOK
       {
         method: 'POST',
         path: '/panel/api/inbounds/import',

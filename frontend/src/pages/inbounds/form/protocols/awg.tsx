@@ -1,12 +1,19 @@
+// Copyright (c) 2025 LucX-UI Project.
+// Licensed under the PolyForm Noncommercial License 1.0.0.
+// LucX-UI Component. Free for personal and educational use.
+// Commercial use (including VPN resale) requires explicit written permission from the author.
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+
 import { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Button, Form, Input, InputNumber, message, Select, Space, Switch } from 'antd';
-import { ReloadOutlined } from '@ant-design/icons';
+import { Alert, Button, Form, Input, InputNumber, message, Modal, Select, Space, Switch, Tag, Tooltip } from 'antd';
+import { CheckCircleOutlined, CloseCircleOutlined, MedicineBoxOutlined, ReloadOutlined } from '@ant-design/icons';
 
 import { FormField } from '@/components/form/rhf';
 import { HttpUtil, Wireguard } from '@/utils';
 import { useOutboundTags } from '@/api/queries/useOutboundTags';
+import { useAwgInboundId } from '../awg-inbound-id-context';
 
 // LUCX-HOOK: AWG — map the panel obfLevel (1/2/3) and mimicryProfile to the
 // backend cps package's profile enums. The backend owns the invariant-
@@ -45,6 +52,26 @@ async function captureHostSignature(domain: string): Promise<Record<string, stri
   const msg = await HttpUtil.post('/panel/api/inbounds/awg/captureHost', { domain }, { headers: { 'Content-Type': 'application/json' } });
   if (!msg?.success) return null;
   return (msg?.obj ?? null) as Record<string, string> | null;
+}
+
+// LUCX-HOOK: AWG — runtime diagnostics types, mirroring internal/awg/diagnostics.go.
+interface AwgDiagCheck {
+  name: string;
+  ok: boolean;
+  detail: string;
+}
+
+interface AwgDiagnostics {
+  ifname: string;
+  mode: string;
+  healthy: boolean;
+  checks: AwgDiagCheck[];
+}
+
+async function fetchAwgDiagnostics(id: number): Promise<AwgDiagnostics | null> {
+  const msg = await HttpUtil.get(`/panel/api/inbounds/${id}/awgDiagnostics`);
+  if (!msg?.success) return null;
+  return (msg?.obj ?? null) as AwgDiagnostics | null;
 }
 // END LUCX-HOOK
 
@@ -109,6 +136,28 @@ export default function AwgFields() {
       messageApi.success(t('pages.inbounds.form.awgCaptureDone'));
     } finally {
       setCapturing(false);
+    }
+  };
+  // END LUCX-HOOK
+
+  // LUCX-HOOK: AWG — runtime diagnostics modal (interface/NAT/TUN probe chain).
+  const inboundId = useAwgInboundId();
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diag, setDiag] = useState<AwgDiagnostics | null>(null);
+  const loadDiagnostics = async () => {
+    if (inboundId == null) return;
+    setDiagLoading(true);
+    try {
+      const d = await fetchAwgDiagnostics(inboundId);
+      if (!d) {
+        messageApi.error(t('pages.inbounds.form.awgDiagFailed'));
+        return;
+      }
+      setDiag(d);
+      setDiagOpen(true);
+    } finally {
+      setDiagLoading(false);
     }
   };
   // END LUCX-HOOK
@@ -206,6 +255,60 @@ export default function AwgFields() {
           </Button>
         </Space.Compact>
       </Form.Item>
+      {/* END LUCX-HOOK */}
+
+      {/* LUCX-HOOK: AWG — runtime diagnostics (read-only probe of the live kernel state) */}
+      <Form.Item label={t('pages.inbounds.form.awgDiagnostics')} tooltip={t('pages.inbounds.form.awgDiagnosticsHint')}>
+        {inboundId == null ? (
+          <Tooltip title={t('pages.inbounds.form.awgDiagSaveFirst')}>
+            <Button icon={<MedicineBoxOutlined />} disabled>
+              {t('pages.inbounds.form.awgDiagRun')}
+            </Button>
+          </Tooltip>
+        ) : (
+          <Button icon={<MedicineBoxOutlined />} onClick={loadDiagnostics} loading={diagLoading}>
+            {t('pages.inbounds.form.awgDiagRun')}
+          </Button>
+        )}
+      </Form.Item>
+      <Modal
+        open={diagOpen}
+        title={
+          <Space>
+            {t('pages.inbounds.form.awgDiagTitle')}
+            {diag && <Tag color="blue">{diag.ifname}</Tag>}
+            {diag && <Tag>{diag.mode}</Tag>}
+          </Space>
+        }
+        footer={
+          <Button onClick={loadDiagnostics} loading={diagLoading}>
+            {t('pages.inbounds.form.awgDiagRefresh')}
+          </Button>
+        }
+        onCancel={() => setDiagOpen(false)}
+      >
+        {diag && (
+          <>
+            <Alert
+              type={diag.healthy ? 'success' : 'warning'}
+              showIcon
+              message={diag.healthy ? t('pages.inbounds.form.awgDiagHealthy') : t('pages.inbounds.form.awgDiagUnhealthy')}
+              style={{ marginBottom: 12 }}
+            />
+            {diag.checks.map((c) => (
+              <div key={c.name} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                {c.ok
+                  ? <CheckCircleOutlined style={{ color: '#52c41a', marginTop: 4 }} />
+                  : <CloseCircleOutlined style={{ color: '#ff4d4f', marginTop: 4 }} />}
+                <div>
+                  <div style={{ fontWeight: 600 }}>{c.name}</div>
+                  <div style={{ opacity: 0.75, fontSize: 12, wordBreak: 'break-all' }}>{c.detail}</div>
+                </div>
+              </div>
+            ))}
+          </>
+        )}
+      </Modal>
       {/* END LUCX-HOOK */}
 
       {(obfLevel ?? 2) >= 2 && (

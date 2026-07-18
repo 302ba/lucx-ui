@@ -7,8 +7,11 @@
 package controller
 
 import (
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 
+	"github.com/mhsanaei/3x-ui/v3/internal/awg"
 	"github.com/mhsanaei/3x-ui/v3/internal/awg/cps"
 	"github.com/mhsanaei/3x-ui/v3/internal/awg/signature"
 )
@@ -125,6 +128,38 @@ func (a *InboundController) awgCaptureHost(c *gin.Context) {
 		"i3": res.I3,
 		"i4": res.I4,
 		"i5": res.I5,
+	}, nil)
+}
+
+// awgDiagnostics probes the live kernel state of an AWG inbound (interface,
+// ip_forward, peers/handshakes, and — depending on the mode — MASQUERADE/
+// FORWARD rules or the tunN/policy-rule/table chain) and returns the ordered
+// check list the panel renders in the AWG diagnostics modal. Read-only: fixes
+// belong to the reconcile loop, this endpoint only makes failures visible.
+//
+// LUCX-HOOK: AWG runtime diagnostics endpoint.
+func (a *InboundController) awgDiagnostics(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		jsonMsg(c, "awg diagnostics: bad id", err)
+		return
+	}
+	inbound, err := a.inboundService.GetInbound(id)
+	if err != nil {
+		jsonMsg(c, "awg diagnostics: inbound not found", err)
+		return
+	}
+	inst, ok := awg.InstanceFromInbound(inbound)
+	if !ok {
+		jsonMsg(c, "awg diagnostics: inbound is not AWG", nil)
+		return
+	}
+	d := awg.Diagnose(inst)
+	jsonObj(c, gin.H{
+		"ifname":  d.Ifname,
+		"mode":    d.Mode,
+		"healthy": d.Healthy(),
+		"checks":  d.Checks,
 	}, nil)
 }
 

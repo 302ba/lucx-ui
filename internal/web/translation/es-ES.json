@@ -693,7 +693,21 @@
           "node": "Dirección del nodo",
           "listen": "Dirección de escucha del inbound",
           "custom": "Personalizada"
-        }
+        },
+        "awgBrowserProfile": "Perfil de navegador",
+        "awgBrowserProfileHint": "Huella TLS del navegador a imitar para el perfil TLS. Chrome usa GREASE; Firefox usa el orden NSS con padding; Safari usa el orden de Apple.",
+        "awgBrowserChrome": "Chrome (última)",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "Diagnóstico",
+        "awgDiagnosticsHint": "Sonda de solo lectura del estado del kernel: interfaz, ip_forward, peers/handshakes y reglas NAT o TUN.",
+        "awgDiagRun": "Ejecutar diagnóstico",
+        "awgDiagSaveFirst": "Guarda el inbound primero — el diagnóstico necesita un sidecar en ejecución",
+        "awgDiagTitle": "Diagnóstico AWG en ejecución",
+        "awgDiagRefresh": "Actualizar",
+        "awgDiagHealthy": "Todas las comprobaciones pasaron — el sidecar y el enrutado están bien.",
+        "awgDiagUnhealthy": "Se encontraron problemas. El bucle reconcile reaplica NAT/TUN cada 10 s — reintenta en unos segundos; los fallos persistentes requieren atención en el servidor.",
+        "awgDiagFailed": "Error al cargar el diagnóstico"
       },
       "info": {
         "mode": "Modo",

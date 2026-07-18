@@ -55,6 +55,9 @@ import { FinalMaskField } from '@/lib/xray/forms/fields';
 import './InboundFormModal.css';
 
 import { AdvancedAllEditor, AdvancedSliceEditor } from './advanced-editors';
+// LUCX-HOOK: AWG — context publishing the editing inbound id to LucX protocol fields
+import { AwgInboundIdProvider } from './awg-inbound-id-context';
+// END LUCX-HOOK
 import { formatInboundIssue, formatInboundValidation } from './formatValidationError';
 import {
   HttpFields,
@@ -939,6 +942,9 @@ export default function InboundFormModal({
         destroyOnHidden
       >
         <FormProvider {...methods}>
+          {/* LUCX-HOOK: AWG — publish the editing inbound id for the diagnostics button (null for new inbound) */}
+          <AwgInboundIdProvider value={mode === 'edit' && dbInbound ? dbInbound.id : null}>
+          {/* END LUCX-HOOK */}
           <Form
             colon={false}
             labelCol={{ sm: { span: 8 } }}
@@ -974,6 +980,9 @@ export default function InboundFormModal({
               { key: 'advanced', label: t('pages.xray.advancedTemplate'), children: advancedTab, forceRender: true },
             ]} />
           </Form>
+          {/* LUCX-HOOK: AWG — end diagnostics id provider */}
+          </AwgInboundIdProvider>
+          {/* END LUCX-HOOK */}
         </FormProvider>
       </Modal>
     </>

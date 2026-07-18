@@ -693,7 +693,21 @@
           "node": "ノードアドレス",
           "listen": "インバウンドのリッスンアドレス",
           "custom": "カスタム"
-        }
+        },
+        "awgBrowserProfile": "ブラウザプロファイル",
+        "awgBrowserProfileHint": "TLSプロファイルで模倣するブラウザのTLSフィンガープリント。ChromeはGREASE、Firefoxはパディング付きNSS順、SafariはApple順を使用します。",
+        "awgBrowserChrome": "Chrome (最新)",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "診断",
+        "awgDiagnosticsHint": "カーネルのライブ状態を読み取り専用で確認: インターフェース、ip_forward、ピア/ハンドシェイク、NATまたはTUNルーティングルール。",
+        "awgDiagRun": "診断を実行",
+        "awgDiagSaveFirst": "先にインバウンドを保存してください — 診断には稼働中のサイドカーが必要です",
+        "awgDiagTitle": "AWGランタイム診断",
+        "awgDiagRefresh": "更新",
+        "awgDiagHealthy": "すべてのチェックに合格 — サイドカーとルーティングは正常です。",
+        "awgDiagUnhealthy": "問題が見つかりました。reconcileループは10秒ごとにNAT/TUN状態を再適用します — 数秒後に再実行してください。持続する障害はサーバー側の対応が必要です。",
+        "awgDiagFailed": "診断の読み込みに失敗しました"
       },
       "info": {
         "mode": "モード",

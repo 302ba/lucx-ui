@@ -693,7 +693,21 @@
         "bytesPerSec": "Saniye Başına Bayt",
         "bytesPerSecTip": "Eşik aşıldıktan sonra fallback trafiğine uygulanan hız sınırı (bayt/sn); böylece sondalar sunucunuzu hedefe ücretsiz bant genişliği olarak kullanamaz. 0 = sınır yok (bu yönü devre dışı bırakır).",
         "burstBytesPerSec": "Saniye Başına Patlama Baytı",
-        "burstBytesPerSecTip": "Sabit hızın üzerindeki kısa patlamalar için pay (token-bucket boyutu). Saniye Başına Bayt değerinden düşükse ona eşitlenecek şekilde yükseltilir."
+        "burstBytesPerSecTip": "Sabit hızın üzerindeki kısa patlamalar için pay (token-bucket boyutu). Saniye Başına Bayt değerinden düşükse ona eşitlenecek şekilde yükseltilir.",
+        "awgBrowserProfile": "Tarayıcı profili",
+        "awgBrowserProfileHint": "TLS profili için taklit edilecek tarayıcı TLS parmak izi. Chrome GREASE kullanır; Firefox padding ile NSS sıralaması; Safari Apple sıralaması kullanır.",
+        "awgBrowserChrome": "Chrome (en yeni)",
+        "awgBrowserFirefox": "Firefox 120+",
+        "awgBrowserSafari": "Safari 16+",
+        "awgDiagnostics": "Tanılama",
+        "awgDiagnosticsHint": "Çekirdek durumunun salt okunur yoklaması: arayüz, ip_forward, eşler/el sıkışmaları ve NAT veya TUN yönlendirme kuralları.",
+        "awgDiagRun": "Tanılamayı çalıştır",
+        "awgDiagSaveFirst": "Önce inbound kaydedin — tanılama çalışan bir sidecar gerektirir",
+        "awgDiagTitle": "AWG çalışma zamanı tanılaması",
+        "awgDiagRefresh": "Yenile",
+        "awgDiagHealthy": "Tüm kontroller geçti — sidecar ve yönlendirme sağlıklı.",
+        "awgDiagUnhealthy": "Sorunlar bulundu. Reconcile döngüsü NAT/TUN durumunu her 10 sn yeniden uygular — birkaç saniye sonra tekrar çalıştırın; kalıcı hatalar sunucu tarafında müdahale gerektirir.",
+        "awgDiagFailed": "Tanılama yüklenemedi"
       },
       "info": {
         "mode": "Mod",
