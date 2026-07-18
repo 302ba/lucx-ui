@@ -318,6 +318,12 @@ x-ui-linux-amd64.tar.gz → x-ui/
 
 ---
 
+## Branch Protection (gh/main)
+
+`main` на `AlexeyLCP/lucx-ui` защищён (Settings → Branches): **force-push и удаление ветки запрещены для всех, включая админа** (`enforce_admins: true`, `allow_force_pushes: false`, `allow_deletions: false`). PR и status checks НЕ требуются — прямые пуши работают как раньше. Если когда-либо понадобится force-push (например, squash истории) — сначала осознанно ослабить правило в Settings → Branches, выполнить, вернуть обратно. Двухшаговость — by design.
+
+---
+
 ## Commit Convention
 
 - Префиксы: `feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`
