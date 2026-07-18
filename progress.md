@@ -581,6 +581,29 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 ---
 
+## Пакет: AWG slimming до mtproto-паритета, полный i18n, upstream-watch, branch protection (2026-07-18, без bump версии)
+
+Рефакторинг/инфра-пакет без изменения поведения панели — версия не bump'ится (релиз lucx.33 актуален), тег не двигаем.
+
+**1. AWG slimming — Known Issue #1 закрыт окончательно.** Core-пакет `internal/awg/` сжат с 12 до 9 файлов — точная симметрия с mtproto (6 source + 3 test против 4 source + 2 platform + 3 test):
+- `traffic.go` (66 строк) влит в `manager.go` — `Traffic`/`scrapeTransfer` существуют только ради `CollectTraffic`
+- `nat_{linux,other}.go` + `orphans_{linux,other}.go` (4 крошечных build-tagged файла) → одна пара `platform_{linux,other}.go`
+- Вычищен мусор: `var (_ = strconv.Itoa; _ = syscall.Kill)` в orphans_linux.go — гварды неиспользуемых импортов от удалённого tun2socks
+- Чистое перемещение без логики, коммит на каждый шаг (bisect-friendly), тесты + GOOS=linux build зелёные после каждого
+- `cps/` и `signature/` остаются пакетами — это фичи вне компетенции mtproto
+
+**2. Полный перевод AWG-формы на 11 локалей.** Раньше из 44 awg-ключей в ar/es/fa/id/ja/pt/tr/uk/vi/zh-CN/zh-TW были только browser/diag (14 шт. из lucx.33) — остальная форма падала в английский fallback. Добавлены 30 ключей × 11 локалей: server keys, obf/mimicry profiles + hints, region, capture host, routeThroughXray/outbound + placeholder, address + `pages.clients.awgConfig`. JSON-aware вставка (Node-скрипт, byte-stable round-trip), проверка полноты: 0 пропусков во всех 13 локалях.
+
+**3. upstream-watch workflow.** `.github/workflows/upstream-watch.yml`: cron каждый понедельник 09:00 UTC (+ workflow_dispatch). Сравнивает `gh api repos/MHSanaei/3x-ui/releases/latest` с `internal/config/version`; при расхождении открывает issue с процедурой миграции (rule 8). Идемпотентно — не дублирует issue для того же тега. Проверено: v3.5.0 == base — молчит. Отвечает на «как узнаем о новой версии апстрима» — автоматически.
+
+**4. Branch protection на gh/main.** Включена через API: `enforce_admins: true`, `allow_force_pushes: false`, `allow_deletions: false`. PR/status-checks НЕ требуются — прямые пуши работают. Force-push теперь осознанное двухшаговое действие (Settings → Branches → ослабить → вернуть). Контекст: contributors ≠ collaborators — доступ к репо только у AlexeyLCP; коммерческие лицензии на LucX-код может выдавать только правообладатель (PolyForm NC), upstream-контрибуторы не имеют копирайта в LucX-файлах. Задокументировано в AGENTS.md (новый раздел Branch Protection).
+
+**5. VPS lucx недоступен** — deploy lucx.33 отложен. Все порты (22/2053/443) фильтруются, ping не идёт: VM остановлена или ephemeral IP сменился (GCP). Нужна консоль GCP: поднять VM или обновить IP в `~/.ssh/config` (Host lucx). Deploy-процедура когда поднимется: tarball v3.5.0-lucx.33 с GitHub → распаковать → заменить `/usr/local/x-ui/x-ui` → `systemctl restart x-ui` → verify.
+
+**lucxVersion** → без изменений (`lucx.33`; код панели не менялся).
+
+---
+
 ## Заметки
 
 - v3.5.0 релиз 2026-07-12 (вчера)
