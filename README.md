@@ -23,6 +23,31 @@ Built as an enhanced fork of the original X-UI project, 3X-UI adds broader proto
 > [!IMPORTANT]
 > This project is intended for personal use only. Please do not use it for illegal purposes or in a production environment.
 
+<!-- LUCX-HOOK: LucX-UI fork section — AWG sidecar, obfuscation, fork install. Keep in sync with AGENTS.md. -->
+---
+
+> **LucX-UI** — this repository is a fork of [3x-ui](https://github.com/MHSanaei/3x-ui) (v3.5.0) that adds native **AmneziaWG (AWG)** support as a kernel-interface sidecar, symmetric with the built-in MTProto (mtg) sidecar.
+
+### LucX additions
+
+- **AmneziaWG inbounds** — full AWG support: kernel-interface sidecar (`awg-quick`), per-peer traffic accounting, client QR codes and `.conf` download, DKMS kernel-module installer.
+- **Obfuscation profiles** — Jc/Jmin/Jmax/S1–S4/H1–H4 presets (Lite/Standard/Pro) plus CPS packet mimicry (TLS, DNS, SIP, QUIC) with **Chrome / Firefox 120+ / Safari 16+** TLS fingerprints, and real QUIC handshake capture from a front domain.
+- **Route through Xray (optional)** — pass AWG traffic through Xray's routing pipeline (domain/geosite rules, balancers, outbounds) via a TUN inbound with policy routing and sniffing, or use plain kernel NAT.
+- **Runtime diagnostics** — one-click probe of the live sidecar state (interface, ip_forward, peer handshakes, NAT/TUN rules) from the inbound form.
+
+### Install (LucX-UI fork)
+
+```bash
+bash <(curl -fL https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/main/install.sh)
+```
+
+Releases: [AlexeyLCP/lucx-ui/releases](https://github.com/AlexeyLCP/lucx-ui/releases/latest). The AWG kernel module is installed by the bundled `bin/install-awg-module.sh` (DKMS).
+
+LucX-specific components (`internal/awg/`, `internal/lucx/`, AWG frontend files, `bin/install-awg-module.sh`) are licensed under **PolyForm Noncommercial 1.0.0** — see [LICENSING.md](LICENSING.md). The original 3x-ui code remains GPL-3.0.
+
+---
+<!-- END LUCX-HOOK -->
+
 ## Features
 
 - **Multi-protocol inbounds** — VLESS, VMess, Trojan, Shadowsocks, WireGuard, Hysteria2, HTTP, SOCKS (Mixed), Dokodemo-door / Tunnel, and TUN.
