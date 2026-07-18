@@ -610,6 +610,8 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 **lucxVersion** → без изменений (`lucx.33`; код панели не менялся).
 
+**8. Донаты.** README: раздел «☕ Поддержать проект» в RU и EN ветках — ЮMoney (рубли, РФ), USDT (TON), USDT (ERC-20), с оговоркой «донат ≠ коммерческая лицензия»; donate-бейдж в шапку. `.github/FUNDING.yml`: заменён upstream-овский (донаты шли **MHSanaei** — `github: MHSanaei`, `buy_me_a_coffee: mhsanaei`, `custom: donate.sanaei.dev`!) на наш custom-линк ЮMoney; крипта в FUNDING.yml не поддерживается — только в README. Кнопка Sponsor на странице репо теперь ведёт к нам.
+
 ---
 
 ## Заметки

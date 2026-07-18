@@ -6,6 +6,7 @@
   <a href="https://github.com/AlexeyLCP/lucx-ui/actions"><img src="https://img.shields.io/github/actions/workflow/status/AlexeyLCP/lucx-ui/release.yml.svg" alt="Build"></a>
   <a href="https://github.com/AlexeyLCP/lucx-ui/releases/latest"><img src="https://img.shields.io/github/downloads/AlexeyLCP/lucx-ui/total.svg" alt="Downloads"></a>
   <a href="LICENSING.md"><img src="https://img.shields.io/badge/license-GPL--3.0%20%2B%20PolyForm--NC-blue" alt="License"></a>
+  <a href="https://yoomoney.ru/to/41001989176429"><img src="https://img.shields.io/badge/donate-☕-yellow" alt="Donate"></a>
 </p>
 
 > [!WARNING]
@@ -65,6 +66,18 @@ bash <(curl -fL https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/main/install
 - [hoaxisr/awg-manager](https://github.com/hoaxisr/awg-manager) — порт захвата QUIC-сигнатуры (`internal/awg/signature/`), предупреждение о TLS-несовместимости.
 - [bogdanfinn/tls-client](https://github.com/bogdanfinn/tls-client) и [refraction-networking/utls](https://github.com/refraction-networking/utls) — репрезентативные TLS-профили Firefox/Safari для наших ClientHello-пресетов.
 
+### ☕ Поддержать проект
+
+LucX-UI бесплатен для личного и некоммерческого использования. Если панель экономит вам время — можно поддержать разработку:
+
+| Способ | Реквизиты |
+|---|---|
+| 🇷🇺 **ЮMoney** (рубли, РФ) | [yoomoney.ru/to/41001989176429](https://yoomoney.ru/to/41001989176429) |
+| 💎 **USDT (TON)** | `UQC48dE4i35bjEU4jljx0h1CGeXMu77eKZwN5W4gbcibmqDs` |
+| 💠 **USDT (ERC-20)** | `0xA49aBc042c5BB3d682788D3DEB2eAC833343a873` |
+
+Донаты — это благодарность, а не оплата: они не дают коммерческой лицензии и не отменяют условия [LICENSING.md](LICENSING.md).
+
 ---
 
 ## 🇬🇧 About
@@ -116,6 +129,18 @@ In practice: **free** for personal, non-commercial, scientific, research, and ed
 - [pumbaX/awg-multi-script](https://github.com/pumbaX/awg-multi-script) — PostUp NAT pattern (MASQUERADE + FORWARD), crypto-lib-free QUIC Initial generators, DKMS install approach.
 - [hoaxisr/awg-manager](https://github.com/hoaxisr/awg-manager) — the QUIC signature capture we ported (`internal/awg/signature/`), and the TLS-incompatibility warning.
 - [bogdanfinn/tls-client](https://github.com/bogdanfinn/tls-client) and [refraction-networking/utls](https://github.com/refraction-networking/utls) — representative Firefox/Safari TLS profiles behind our ClientHello presets.
+
+### ☕ Support the project
+
+LucX-UI is free for personal and non-commercial use. If the panel saves you time, you can support development:
+
+| Method | Details |
+|---|---|
+| 🇷🇺 **YooMoney** (RUB, Russia) | [yoomoney.ru/to/41001989176429](https://yoomoney.ru/to/41001989176429) |
+| 💎 **USDT (TON)** | `UQC48dE4i35bjEU4jljx0h1CGeXMu77eKZwN5W4gbcibmqDs` |
+| 💠 **USDT (ERC-20)** | `0xA49aBc042c5BB3d682788D3DEB2eAC833343a873` |
+
+Donations are a thank-you, not a purchase: they do not grant a commercial license and do not change the terms in [LICENSING.md](LICENSING.md).
 
 ---
 
