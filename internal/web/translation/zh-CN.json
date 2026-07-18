@@ -707,7 +707,36 @@
         "awgDiagRefresh": "刷新",
         "awgDiagHealthy": "所有检查通过 — sidecar 与路由正常。",
         "awgDiagUnhealthy": "发现问题。reconcile 循环每 10 秒重新应用 NAT/TUN 状态 — 请几秒后重试；持续失败需要服务器端处理。",
-        "awgDiagFailed": "诊断加载失败"
+        "awgDiagFailed": "诊断加载失败",
+        "awgServerKeys": "服务器密钥",
+        "awgPrivateKey": "私钥",
+        "awgPublicKey": "公钥",
+        "awgObfLevel": "混淆配置",
+        "awgObfLevelHint": "Lite — 轻量 (Jc + DNS I1)；Standard — 中等 (Jc/S/H + TLS I1)；Pro — 完整 (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "伪装配置",
+        "awgMimicryProfileHint": "CPS 特征模拟的数据包形状。TLS/QUIC 看起来像真实浏览器流量；DNS/SIP 更轻量。",
+        "awgRegion": "区域",
+        "awgRegionHint": "从哪个前置域名池中提取。RU 在全球集合基础上添加俄罗斯服务（yandex/vk/gosuslugi）。",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "混淆",
+        "awgRegenerate": "重新生成",
+        "awgRegenerateFailed": "混淆生成失败",
+        "awgRegenerateDone": "混淆已生成",
+        "awgCaptureHost": "扫描主机",
+        "awgCaptureHostHint": "输入域名（例如 google.com）以捕获其真实的 QUIC 握手并用作 I1-I5 CPS 特征。主机必须在 443 端口支持 QUIC。",
+        "awgCapture": "捕获",
+        "awgCaptureDomainRequired": "域名必填",
+        "awgCaptureFailed": "捕获失败 — 主机可能不支持 443 上的 QUIC",
+        "awgCaptureDone": "已从主机捕获 I1-I5",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "通过 Xray 路由",
+        "awgRouteThroughXrayHint": "通过注入的 TUN 入站将 AWG 内核接口解密后的数据包送入 Xray 路由器，使出口遵循路由规则。与 mtproto 的 routeThroughXray 相同。",
+        "awgRouteOutbound": "路由出站",
+        "awgRouteOutboundHint": "可选。强制 AWG 流量通过此出站（或负载均衡器）发出。留空则由路由规则决定。",
+        "awgRouteOutboundPlaceholder": "使用路由规则",
+        "awgAddress": "服务器隧道地址",
+        "awgAddressHint": "服务器隧道 IP/CIDR，例如 10.8.0.1/24。客户端从此子网获取地址。"
       },
       "info": {
         "mode": "模式",
@@ -958,7 +987,8 @@
         "delOrphans": "已删除 {count} 个未关联的客户端",
         "imported": "已导入 {count} 个客户端",
         "importedMixed": "已导入 {ok} 个，跳过 {failed} 个"
-      }
+      },
+      "awgConfig": "AWG 配置"
     },
     "groups": {
       "title": "分组",

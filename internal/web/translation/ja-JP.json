@@ -707,7 +707,36 @@
         "awgDiagRefresh": "更新",
         "awgDiagHealthy": "すべてのチェックに合格 — サイドカーとルーティングは正常です。",
         "awgDiagUnhealthy": "問題が見つかりました。reconcileループは10秒ごとにNAT/TUN状態を再適用します — 数秒後に再実行してください。持続する障害はサーバー側の対応が必要です。",
-        "awgDiagFailed": "診断の読み込みに失敗しました"
+        "awgDiagFailed": "診断の読み込みに失敗しました",
+        "awgServerKeys": "サーバーキー",
+        "awgPrivateKey": "秘密鍵",
+        "awgPublicKey": "公開鍵",
+        "awgObfLevel": "難読化プロファイル",
+        "awgObfLevelHint": "Lite — 軽量 (Jc + DNS I1); Standard — 中程度 (Jc/S/H + TLS I1); Pro — フル (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "ミミクリープロファイル",
+        "awgMimicryProfileHint": "CPSシグネチャが模倣するパケット形状。TLS/QUICは実際のブラウザトラフィックに見え、DNS/SIPはより軽量です。",
+        "awgRegion": "リージョン",
+        "awgRegionHint": "どのフロントドメインプールから取得するか。RUはグローバルセットにロシアのサービス(yandex/vk/gosuslugi)を追加します。",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "難読化",
+        "awgRegenerate": "再生成",
+        "awgRegenerateFailed": "難読化の生成に失敗しました",
+        "awgRegenerateDone": "難読化を生成しました",
+        "awgCaptureHost": "ホストスキャン",
+        "awgCaptureHostHint": "ドメイン(例: google.com)を入力すると、実際のQUICハンドシェイクをキャプチャしてI1-I5 CPSシグネチャとして使用します。ホストはポート443でQUICをサポートしている必要があります。",
+        "awgCapture": "キャプチャ",
+        "awgCaptureDomainRequired": "ドメインは必須です",
+        "awgCaptureFailed": "キャプチャ失敗 — ホストが443でQUICをサポートしていない可能性があります",
+        "awgCaptureDone": "ホストからI1-I5をキャプチャしました",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "Xray経由でルーティング",
+        "awgRouteThroughXrayHint": "AWGカーネルインターフェースの復号パケットを注入されたTUNインバウンド経由でXrayルーターに送り、egressがルーティングルールに従うようにします。mtprotoのrouteThroughXrayと同等です。",
+        "awgRouteOutbound": "ルートアウトバウンド",
+        "awgRouteOutboundHint": "任意。AWGトラフィックをこのアウトバウンド(またはバランサー)経由で強制的に出力します。空のままにするとルーティングルールに従います。",
+        "awgRouteOutboundPlaceholder": "ルーティングルールを使用",
+        "awgAddress": "サーバートンネルアドレス",
+        "awgAddressHint": "サーバートンネルのIP/CIDR(例: 10.8.0.1/24)。クライアントはこのサブネットからアドレスを取得します。"
       },
       "info": {
         "mode": "モード",
@@ -958,7 +987,8 @@
         "delOrphans": "未アタッチの {count} 件のクライアントを削除しました",
         "imported": "{count} 件のクライアントをインポートしました",
         "importedMixed": "{ok} 件インポート、{failed} 件スキップ"
-      }
+      },
+      "awgConfig": "AWG設定"
     },
     "groups": {
       "title": "グループ",

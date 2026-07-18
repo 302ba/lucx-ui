@@ -707,7 +707,36 @@
         "awgDiagRefresh": "تازه‌سازی",
         "awgDiagHealthy": "همه بررسی‌ها موفق بود — sidecar و مسیریابی سالم‌اند.",
         "awgDiagUnhealthy": "مشکلاتی یافت شد. حلقه reconcile وضعیت NAT/TUN را هر ۱۰ ثانیه دوباره اعمال می‌کند — چند ثانیه بعد دوباره اجرا کنید؛ خطاهای مداوم نیاز به رسیدگی سمت سرور دارند.",
-        "awgDiagFailed": "بارگیری تشخیص ناموفق بود"
+        "awgDiagFailed": "بارگیری تشخیص ناموفق بود",
+        "awgServerKeys": "کلیدهای سرور",
+        "awgPrivateKey": "کلید خصوصی",
+        "awgPublicKey": "کلید عمومی",
+        "awgObfLevel": "پروفایل مبهم‌سازی",
+        "awgObfLevelHint": "Lite — سبک (Jc + DNS I1)؛ Standard — متوسط (Jc/S/H + TLS I1)؛ Pro — کامل (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "پروفایل تقلید",
+        "awgMimicryProfileHint": "شکل بسته‌ای که امضای CPS تقلید می‌کند. TLS/QUIC شبیه ترافیک واقعی مرورگر است؛ DNS/SIP سبک‌تر است.",
+        "awgRegion": "منطقه",
+        "awgRegionHint": "از کدام مخزن دامنه‌های front برداشت شود. RU سرویس‌های روسی (yandex/vk/gosuslugi) را به مجموعه جهانی اضافه می‌کند.",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "مبهم‌سازی",
+        "awgRegenerate": "تولید مجدد",
+        "awgRegenerateFailed": "تولید مبهم‌سازی ناموفق بود",
+        "awgRegenerateDone": "مبهم‌سازی تولید شد",
+        "awgCaptureHost": "اسکن میزبان",
+        "awgCaptureHostHint": "یک دامنه (مثلاً google.com) وارد کنید تا Handshake واقعی QUIC آن گرفته و به‌عنوان امضای CPS I1-I5 استفاده شود. میزبان باید QUIC را روی پورت 443 پشتیبانی کند.",
+        "awgCapture": "گرفتن",
+        "awgCaptureDomainRequired": "دامنه الزامی است",
+        "awgCaptureFailed": "گرفتن ناموفق بود — میزبان ممکن است QUIC را روی 443 پشتیبانی نکند",
+        "awgCaptureDone": "I1-I5 از میزبان گرفته شد",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "مسیریابی از طریق Xray",
+        "awgRouteThroughXrayHint": "بسته‌های رمزگشایی‌شده رابط هسته AWG را از طریق اینباند TUN تزریقی به روتر Xray بفرستید تا خروجی از قوانین مسیریابی پیروی کند. معادل routeThroughXray در mtproto.",
+        "awgRouteOutbound": "آوت‌باند مسیر",
+        "awgRouteOutboundHint": "اختیاری. ترافیک AWG را از این آوت‌باند (یا بالانسِر) خارج کنید. خالی بگذارید تا قوانین مسیریابی تصمیم بگیرند.",
+        "awgRouteOutboundPlaceholder": "استفاده از قوانین مسیریابی",
+        "awgAddress": "آدرس تونل سرور",
+        "awgAddressHint": "IP/CIDR تونل سرور، مثلاً 10.8.0.1/24. کلاینت‌ها از این زیرشبکه آدرس می‌گیرند."
       },
       "info": {
         "mode": "حالت",
@@ -958,7 +987,8 @@
         "delOrphans": "{count} کلاینت بدون اینباند حذف شد",
         "imported": "{count} کلاینت وارد شد",
         "importedMixed": "{ok} وارد شد، {failed} رد شد"
-      }
+      },
+      "awgConfig": "پیکربندی AWG"
     },
     "groups": {
       "title": "گروه‌ها",

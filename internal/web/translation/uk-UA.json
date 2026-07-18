@@ -707,7 +707,36 @@
         "awgDiagRefresh": "Оновити",
         "awgDiagHealthy": "Усі перевірки пройдено — сайдкар і маршрутизація в порядку.",
         "awgDiagUnhealthy": "Знайдено проблеми. Reconcile-цикл відновлює NAT/TUN кожні 10 с — повторіть за кілька секунд; постійні помилки потребують втручання на сервері.",
-        "awgDiagFailed": "Не вдалося завантажити діагностику"
+        "awgDiagFailed": "Не вдалося завантажити діагностику",
+        "awgServerKeys": "Ключі сервера",
+        "awgPrivateKey": "Приватний ключ",
+        "awgPublicKey": "Публічний ключ",
+        "awgObfLevel": "Профіль обфускації",
+        "awgObfLevelHint": "Lite — легкий (Jc + DNS I1); Standard — середній (Jc/S/H + TLS I1); Pro — повний (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "Профіль мімікрії",
+        "awgMimicryProfileHint": "Яку форму пакета імітує CPS-сигнатура. TLS/QUIC виглядають як справжній браузерний трафік; DNS/SIP легші.",
+        "awgRegion": "Регіон",
+        "awgRegionHint": "З якого пулу front-доменів брати. RU додає російські сервіси (yandex/vk/gosuslugi) до глобального набору.",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "Обфускація",
+        "awgRegenerate": "Перегенерувати",
+        "awgRegenerateFailed": "Не вдалося згенерувати обфускацію",
+        "awgRegenerateDone": "Обфускацію згенеровано",
+        "awgCaptureHost": "Сканувати хост",
+        "awgCaptureHostHint": "Введіть домен (напр. google.com), щоб захопити його реальне QUIC-рукостискання і використати як CPS-сигнатуру I1-I5. Хост має підтримувати QUIC на порту 443.",
+        "awgCapture": "Захопити",
+        "awgCaptureDomainRequired": "Домен обов’язковий",
+        "awgCaptureFailed": "Захоплення не вдалося — хост може не підтримувати QUIC на 443",
+        "awgCaptureDone": "I1-I5 захоплено з хоста",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "Маршрутизувати через Xray",
+        "awgRouteThroughXrayHint": "Надсилає розшифровані пакети kernel-інтерфейсу AWG до маршрутизатора Xray через інжектований TUN-інбаунд, тому egress підпорядковується правилам маршрутизації. Дзеркалить routeThroughXray у mtproto.",
+        "awgRouteOutbound": "Аутбаунд маршруту",
+        "awgRouteOutboundHint": "Необов’язково. Примусово направляє трафік AWG через цей аутбаунд (або балансувальник). Залиште порожнім — вирішать правила маршрутизації.",
+        "awgRouteOutboundPlaceholder": "Використовувати правила маршрутизації",
+        "awgAddress": "Тунельна адреса сервера",
+        "awgAddressHint": "IP/CIDR тунелю сервера, напр. 10.8.0.1/24. Клієнти отримують адреси з цієї підмережі."
       },
       "info": {
         "mode": "Режим",
@@ -958,7 +987,8 @@
         "delOrphans": "Видалено клієнтів без вхідного: {count}",
         "imported": "Імпортовано клієнтів: {count}",
         "importedMixed": "Імпортовано: {ok}, пропущено: {failed}"
-      }
+      },
+      "awgConfig": "Конфігурація AWG"
     },
     "groups": {
       "title": "Групи",

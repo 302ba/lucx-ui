@@ -707,7 +707,36 @@
         "awgDiagRefresh": "Actualizar",
         "awgDiagHealthy": "Todas las comprobaciones pasaron — el sidecar y el enrutado están bien.",
         "awgDiagUnhealthy": "Se encontraron problemas. El bucle reconcile reaplica NAT/TUN cada 10 s — reintenta en unos segundos; los fallos persistentes requieren atención en el servidor.",
-        "awgDiagFailed": "Error al cargar el diagnóstico"
+        "awgDiagFailed": "Error al cargar el diagnóstico",
+        "awgServerKeys": "Claves del servidor",
+        "awgPrivateKey": "Clave privada",
+        "awgPublicKey": "Clave pública",
+        "awgObfLevel": "Perfil de ofuscación",
+        "awgObfLevelHint": "Lite — ligero (Jc + DNS I1); Standard — medio (Jc/S/H + TLS I1); Pro — completo (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "Perfil de mimetización",
+        "awgMimicryProfileHint": "Qué forma de paquete imita la firma CPS. TLS/QUIC parecen tráfico real de navegador; DNS/SIP son más ligeros.",
+        "awgRegion": "Región",
+        "awgRegionHint": "De qué grupo de dominios frontales tomar. RU añade servicios rusos (yandex/vk/gosuslugi) al conjunto global.",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "Ofuscación",
+        "awgRegenerate": "Regenerar",
+        "awgRegenerateFailed": "Error al generar la ofuscación",
+        "awgRegenerateDone": "Ofuscación generada",
+        "awgCaptureHost": "Escanear host",
+        "awgCaptureHostHint": "Introduce un dominio (p. ej. google.com) para capturar su handshake QUIC real y usarlo como firma CPS I1-I5. El host debe soportar QUIC en el puerto 443.",
+        "awgCapture": "Capturar",
+        "awgCaptureDomainRequired": "El dominio es obligatorio",
+        "awgCaptureFailed": "Captura fallida — el host puede no soportar QUIC en 443",
+        "awgCaptureDone": "I1-I5 capturados del host",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "Enrutar a través de Xray",
+        "awgRouteThroughXrayHint": "Envía los paquetes descifrados de la interfaz kernel AWG al router de Xray mediante un inbound TUN inyectado, para que la salida obedezca las reglas de enrutado. Refleja el routeThroughXray de mtproto.",
+        "awgRouteOutbound": "Outbound de ruta",
+        "awgRouteOutboundHint": "Opcional. Fuerza el tráfico AWG a salir por este outbound (o balanceador). Déjalo vacío para que decidan tus reglas de enrutado.",
+        "awgRouteOutboundPlaceholder": "Usar reglas de enrutado",
+        "awgAddress": "Dirección del túnel del servidor",
+        "awgAddressHint": "IP/CIDR del túnel del servidor, p. ej. 10.8.0.1/24. Los clientes reciben direcciones de esta subred."
       },
       "info": {
         "mode": "Modo",
@@ -958,7 +987,8 @@
         "delOrphans": "{count} clientes sin entrante eliminados",
         "imported": "{count} clientes importados",
         "importedMixed": "{ok} importados, {failed} omitidos"
-      }
+      },
+      "awgConfig": "Configuración AWG"
     },
     "groups": {
       "title": "Grupos",

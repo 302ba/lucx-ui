@@ -707,7 +707,36 @@
         "awgDiagRefresh": "Yenile",
         "awgDiagHealthy": "Tüm kontroller geçti — sidecar ve yönlendirme sağlıklı.",
         "awgDiagUnhealthy": "Sorunlar bulundu. Reconcile döngüsü NAT/TUN durumunu her 10 sn yeniden uygular — birkaç saniye sonra tekrar çalıştırın; kalıcı hatalar sunucu tarafında müdahale gerektirir.",
-        "awgDiagFailed": "Tanılama yüklenemedi"
+        "awgDiagFailed": "Tanılama yüklenemedi",
+        "awgServerKeys": "Sunucu anahtarları",
+        "awgPrivateKey": "Özel anahtar",
+        "awgPublicKey": "Genel anahtar",
+        "awgObfLevel": "Gizleme profili",
+        "awgObfLevelHint": "Lite — hafif (Jc + DNS I1); Standard — orta (Jc/S/H + TLS I1); Pro — tam (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "Taklit profili",
+        "awgMimicryProfileHint": "CPS imzasının taklit ettiği paket şekli. TLS/QUIC gerçek tarayıcı trafiği gibi görünür; DNS/SIP daha hafiftir.",
+        "awgRegion": "Bölge",
+        "awgRegionHint": "Hangi ön domain havuzundan alınacağı. RU, küresel kümeye Rus servisleri (yandex/vk/gosuslugi) ekler.",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "Gizleme",
+        "awgRegenerate": "Yeniden üret",
+        "awgRegenerateFailed": "Gizleme üretilemedi",
+        "awgRegenerateDone": "Gizleme üretildi",
+        "awgCaptureHost": "Host tara",
+        "awgCaptureHostHint": "Gerçek QUIC el sıkışmasını yakalayıp I1-I5 CPS imzası olarak kullanmak için bir domain girin (örn. google.com). Host 443 portunda QUIC desteklemelidir.",
+        "awgCapture": "Yakala",
+        "awgCaptureDomainRequired": "Domain gerekli",
+        "awgCaptureFailed": "Yakalama başarısız — host 443 üzerinde QUIC desteklemiyor olabilir",
+        "awgCaptureDone": "Hosttan I1-I5 yakalandı",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "Xray üzerinden yönlendir",
+        "awgRouteThroughXrayHint": "AWG kernel arayüzünün şifresi çözülmüş paketlerini enjekte edilen TUN inbound ile Xray yönlendiricisine gönderir, böylece çıkış yönlendirme kurallarına uyar. mtproto routeThroughXray ile aynıdır.",
+        "awgRouteOutbound": "Yönlendirme outboundu",
+        "awgRouteOutboundHint": "İsteğe bağlı. AWG trafiğini bu outbound (veya dengeleyici) üzerinden çıkmaya zorla. Yönlendirme kurallarınızın karar vermesi için boş bırakın.",
+        "awgRouteOutboundPlaceholder": "Yönlendirme kurallarını kullan",
+        "awgAddress": "Sunucu tünel adresi",
+        "awgAddressHint": "Sunucu tünel IP/CIDR si, örn. 10.8.0.1/24. İstemciler bu alt ağdan adres alır."
       },
       "info": {
         "mode": "Mod",
@@ -958,7 +987,8 @@
         "delOrphans": "{count} bağsız kullanıcı silindi",
         "imported": "{count} kullanıcı içe aktarıldı",
         "importedMixed": "{ok} içe aktarıldı, {failed} atlandı"
-      }
+      },
+      "awgConfig": "AWG yapılandırması"
     },
     "groups": {
       "title": "Gruplar",

@@ -707,7 +707,36 @@
         "awgDiagRefresh": "تحديث",
         "awgDiagHealthy": "اجتازت جميع الفحوصات — الـ sidecar والتوجيه بحالة جيدة.",
         "awgDiagUnhealthy": "وُجدت مشاكل. حلقة reconcile تعيد تطبيق NAT/TUN كل 10 ثوانٍ — أعد التشغيل بعد ثوانٍ؛ الأعطال المستمرة تتطلب تدخلاً على الخادم.",
-        "awgDiagFailed": "فشل تحميل التشخيص"
+        "awgDiagFailed": "فشل تحميل التشخيص",
+        "awgServerKeys": "مفاتيح الخادم",
+        "awgPrivateKey": "المفتاح الخاص",
+        "awgPublicKey": "المفتاح العام",
+        "awgObfLevel": "ملف التعتيم",
+        "awgObfLevelHint": "Lite — خفيف (Jc + DNS I1)؛ Standard — متوسط (Jc/S/H + TLS I1)؛ Pro — كامل (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "ملف المحاكاة",
+        "awgMimicryProfileHint": "شكل الحزمة الذي تحاكيه بصمة CPS. يبدو TLS/QUIC كحركة متصفح حقيقية؛ DNS/SIP أخف.",
+        "awgRegion": "المنطقة",
+        "awgRegionHint": "من أي مجموعة نطاقات واجهة يتم الاختيار. تضيف RU خدمات روسية (yandex/vk/gosuslugi) إلى المجموعة العالمية.",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "التعتيم",
+        "awgRegenerate": "إعادة توليد",
+        "awgRegenerateFailed": "فشل توليد التعتيم",
+        "awgRegenerateDone": "تم توليد التعتيم",
+        "awgCaptureHost": "فحص المضيف",
+        "awgCaptureHostHint": "أدخل نطاقًا (مثل google.com) لالتقاط مصافحة QUIC الحقيقية واستخدامها كتوقيع CPS I1-I5. يجب أن يدعم المضيف QUIC على المنفذ 443.",
+        "awgCapture": "التقاط",
+        "awgCaptureDomainRequired": "النطاق مطلوب",
+        "awgCaptureFailed": "فشل الالتقاط — قد لا يدعم المضيف QUIC على 443",
+        "awgCaptureDone": "تم التقاط I1-I5 من المضيف",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "التوجيه عبر Xray",
+        "awgRouteThroughXrayHint": "أرسل الحزم المفكوكة لواجهة AWG إلى موجّه Xray عبر إنباوند TUN مُدخل، بحيث تخضع المخرجات لقواعد التوجيه. يعكس routeThroughXray في mtproto.",
+        "awgRouteOutbound": "مخرج التوجيه",
+        "awgRouteOutboundHint": "اختياري. أجبر حركة AWG على الخروج عبر هذا المخرج (أو الموازن). اتركه فارغًا لتقرر قواعد التوجيه.",
+        "awgRouteOutboundPlaceholder": "استخدم قواعد التوجيه",
+        "awgAddress": "عنوان نفق الخادم",
+        "awgAddressHint": "IP/CIDR نفق الخادم، مثل 10.8.0.1/24. يحصل العملاء على عناوين من هذه الشبكة الفرعية."
       },
       "info": {
         "mode": "الوضع",
@@ -958,7 +987,8 @@
         "delOrphans": "تم حذف {count} عميل غير مرتبط",
         "imported": "تم استيراد {count} عميل",
         "importedMixed": "{ok} تم استيرادهم، {failed} تم تخطيهم"
-      }
+      },
+      "awgConfig": "إعدادات AWG"
     },
     "groups": {
       "title": "المجموعات",

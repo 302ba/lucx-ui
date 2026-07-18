@@ -707,7 +707,36 @@
         "awgDiagRefresh": "Làm mới",
         "awgDiagHealthy": "Mọi kiểm tra đều đạt — sidecar và định tuyến bình thường.",
         "awgDiagUnhealthy": "Phát hiện sự cố. Vòng lặp reconcile áp lại NAT/TUN mỗi 10 giây — chạy lại sau vài giây; lỗi kéo dài cần xử lý trên máy chủ.",
-        "awgDiagFailed": "Không tải được chẩn đoán"
+        "awgDiagFailed": "Không tải được chẩn đoán",
+        "awgServerKeys": "Khóa máy chủ",
+        "awgPrivateKey": "Khóa riêng",
+        "awgPublicKey": "Khóa công khai",
+        "awgObfLevel": "Hồ sơ làm rối",
+        "awgObfLevelHint": "Lite — nhẹ (Jc + DNS I1); Standard — vừa (Jc/S/H + TLS I1); Pro — đầy đủ (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "Hồ sơ ngụy trang",
+        "awgMimicryProfileHint": "Dạng gói tin mà chữ ký CPS bắt chước. TLS/QUIC trông như lưu lượng trình duyệt thật; DNS/SIP nhẹ hơn.",
+        "awgRegion": "Khu vực",
+        "awgRegionHint": "Lấy từ pool domain front nào. RU thêm các dịch vụ Nga (yandex/vk/gosuslugi) vào bộ toàn cầu.",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "Làm rối",
+        "awgRegenerate": "Tạo lại",
+        "awgRegenerateFailed": "Tạo làm rối thất bại",
+        "awgRegenerateDone": "Đã tạo làm rối",
+        "awgCaptureHost": "Quét host",
+        "awgCaptureHostHint": "Nhập một domain (vd. google.com) để bắt handshake QUIC thật và dùng làm chữ ký CPS I1-I5. Host phải hỗ trợ QUIC trên cổng 443.",
+        "awgCapture": "Bắt",
+        "awgCaptureDomainRequired": "Bắt buộc nhập domain",
+        "awgCaptureFailed": "Bắt thất bại — host có thể không hỗ trợ QUIC trên 443",
+        "awgCaptureDone": "Đã bắt I1-I5 từ host",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "Định tuyến qua Xray",
+        "awgRouteThroughXrayHint": "Gửi các gói đã giải mã của giao diện kernel AWG vào router Xray qua inbound TUN được chèn, để egress tuân theo quy tắc định tuyến. Tương tự routeThroughXray của mtproto.",
+        "awgRouteOutbound": "Outbound định tuyến",
+        "awgRouteOutboundHint": "Tùy chọn. Ép lưu lượng AWG đi ra qua outbound (hoặc balancer) này. Để trống để quy tắc định tuyến quyết định.",
+        "awgRouteOutboundPlaceholder": "Dùng quy tắc định tuyến",
+        "awgAddress": "Địa chỉ tunnel máy chủ",
+        "awgAddressHint": "IP/CIDR tunnel máy chủ, vd. 10.8.0.1/24. Client nhận địa chỉ từ subnet này."
       },
       "info": {
         "mode": "Chế độ",
@@ -958,7 +987,8 @@
         "delOrphans": "Đã xóa {count} khách hàng không gắn inbound",
         "imported": "Đã nhập {count} khách hàng",
         "importedMixed": "Đã nhập {ok}, bỏ qua {failed}"
-      }
+      },
+      "awgConfig": "Cấu hình AWG"
     },
     "groups": {
       "title": "Nhóm",

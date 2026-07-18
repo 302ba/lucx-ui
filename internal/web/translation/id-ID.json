@@ -707,7 +707,36 @@
         "awgDiagRefresh": "Muat ulang",
         "awgDiagHealthy": "Semua pemeriksaan lolos — sidecar dan routing sehat.",
         "awgDiagUnhealthy": "Ditemukan masalah. Loop reconcile menerapkan ulang NAT/TUN setiap 10 detik — jalankan lagi setelah beberapa detik; kegagalan berulang perlu penanganan di server.",
-        "awgDiagFailed": "Gagal memuat diagnostik"
+        "awgDiagFailed": "Gagal memuat diagnostik",
+        "awgServerKeys": "Kunci server",
+        "awgPrivateKey": "Kunci privat",
+        "awgPublicKey": "Kunci publik",
+        "awgObfLevel": "Profil obfuscation",
+        "awgObfLevelHint": "Lite — ringan (Jc + DNS I1); Standard — sedang (Jc/S/H + TLS I1); Pro — penuh (Jc/S/H + I1-I5)",
+        "awgMimicryProfile": "Profil mimikri",
+        "awgMimicryProfileHint": "Bentuk paket yang ditiru signature CPS. TLS/QUIC tampak seperti trafik browser asli; DNS/SIP lebih ringan.",
+        "awgRegion": "Region",
+        "awgRegionHint": "Dari pool domain front mana yang diambil. RU menambahkan layanan Rusia (yandex/vk/gosuslugi) ke set global.",
+        "awgMtu": "MTU",
+        "awgDns": "DNS",
+        "awgObfuscation": "Obfuscation",
+        "awgRegenerate": "Regenerasi",
+        "awgRegenerateFailed": "Gagal membuat obfuscation",
+        "awgRegenerateDone": "Obfuscation dibuat",
+        "awgCaptureHost": "Pindai host",
+        "awgCaptureHostHint": "Masukkan domain (mis. google.com) untuk menangkap handshake QUIC aslinya dan memakainya sebagai signature CPS I1-I5. Host harus mendukung QUIC di port 443.",
+        "awgCapture": "Tangkap",
+        "awgCaptureDomainRequired": "Domain wajib diisi",
+        "awgCaptureFailed": "Penangkapan gagal — host mungkin tidak mendukung QUIC di 443",
+        "awgCaptureDone": "I1-I5 ditangkap dari host",
+        "awgCpsHex": "<b 0xHEX>",
+        "awgRouteThroughXray": "Routing lewat Xray",
+        "awgRouteThroughXrayHint": "Kirim paket terdekripsi antarmuka kernel AWG ke router Xray melalui inbound TUN yang diinjeksikan, sehingga egress mengikuti aturan routing. Cermin routeThroughXray milik mtproto.",
+        "awgRouteOutbound": "Outbound rute",
+        "awgRouteOutboundHint": "Opsional. Paksa trafik AWG keluar lewat outbound (atau balancer) ini. Kosongkan agar aturan routing yang memutuskan.",
+        "awgRouteOutboundPlaceholder": "Pakai aturan routing",
+        "awgAddress": "Alamat tunnel server",
+        "awgAddressHint": "IP/CIDR tunnel server, mis. 10.8.0.1/24. Klien mendapat alamat dari subnet ini."
       },
       "info": {
         "mode": "Mode",
@@ -958,7 +987,8 @@
         "delOrphans": "{count} klien tanpa inbound dihapus",
         "imported": "{count} klien diimpor",
         "importedMixed": "{ok} diimpor, {failed} dilewati"
-      }
+      },
+      "awgConfig": "Konfigurasi AWG"
     },
     "groups": {
       "title": "Grup",
