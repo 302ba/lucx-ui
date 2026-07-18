@@ -64,7 +64,7 @@ func GenerateCPS(profile MimicryProfile, region Region, domain string, browser B
 		i5 := sipPacket(dom)
 		return CPSResult{I1: i1, I2: i2, I3: i3, I4: i4, I5: i5}, nil
 	case ProfileQUIC:
-		i1 := quicInitialPacket(dom)
+		i1 := quicInitialPacket(dom, browser)
 		if onlyI1 {
 			return CPSResult{I1: i1}, nil
 		}
@@ -659,15 +659,25 @@ func randomPrivateIP() string {
 // (gen_quic_initial without the cryptography lib): a structurally valid QUIC
 // Initial that the AWG kernel accepts. Real QUIC encryption (HKDF-SHA256 +
 // AES-128-GCM + header protection) is not needed for CPS — the packets are
-// signature templates, not live wire traffic.
-func quicInitialPacket(domain string) string {
+// signature templates, not live wire traffic. The embedded ClientHello follows
+// the chosen browser profile (h3 over QUIC is still TLS underneath, so the
+// same Chrome/Firefox/Safari fingerprint split applies).
+func quicInitialPacket(domain string, browser BrowserProfile) string {
 	dcid := randomBytes(8)
 	scid := randomBytes(8)
 	// CRYPTO frame (type 0x06) with a synthetic ClientHello-like payload.
 	var crypto bytes.Buffer
 	crypto.WriteByte(0x06)           // CRYPTO frame type
 	crypto.Write([]byte{0x00, 0x00}) // offset 0, var-int length placeholder
-	ch := buildChromeHello(domain)
+	var ch []byte
+	switch browser {
+	case BrowserFirefox:
+		ch = buildFirefoxHello(domain)
+	case BrowserSafari:
+		ch = buildSafariHello(domain)
+	default:
+		ch = buildChromeHello(domain)
+	}
 	writeVarint(&crypto, len(ch))
 	crypto.Write(ch)
 

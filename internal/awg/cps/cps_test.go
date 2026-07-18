@@ -112,6 +112,21 @@ func TestGenerateCPS_AllBrowsersNonEmpty(t *testing.T) {
 	}
 }
 
+func TestQuicInitialPacket_RespectsBrowser(t *testing.T) {
+	SetRand(rand.New(rand.NewSource(7)))
+	chrome := quicInitialPacket("example.com", BrowserChrome)
+	SetRand(rand.New(rand.NewSource(7)))
+	firefox := quicInitialPacket("example.com", BrowserFirefox)
+	if chrome == firefox {
+		t.Error("chrome and firefox QUIC Initials must differ (embedded ClientHello differs)")
+	}
+	for name, tag := range map[string]string{"chrome": chrome, "firefox": firefox} {
+		if len(tag) < 2400 {
+			t.Errorf("%s: QUIC Initial must pad to ~1200 bytes (>=2400 hex chars), got %d", name, len(tag))
+		}
+	}
+}
+
 func TestBuildFirefoxHello_NoGrease(t *testing.T) {
 	SetRand(rand.New(rand.NewSource(42)))
 	ch := buildFirefoxHello("example.com")
