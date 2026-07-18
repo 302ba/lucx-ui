@@ -106,17 +106,18 @@ Integration points (`model.go`, `db.go`, `web.go`, `runtime/local.go`, `service/
 
 AWG runs as a kernel-interface sidecar managed by `internal/awg.Manager`, exactly symmetric with `internal/mtproto.Manager`:
 
-- **Manager** (`internal/awg/manager.go`): singleton with `Ensure`/`Reconcile`/`StopAll`/`CollectTraffic`/`SyncPeers`, fingerprint-based restart on config change, orphan sweep at first call.
+- **Manager** (`internal/awg/manager.go`): singleton with `Ensure`/`Reconcile`/`StopAll`/`CollectTraffic`/`SyncPeers`, fingerprint-based restart on config change, orphan sweep at first call. Reconcile-loop convergence: `ensureXrayRouting` (routeThroughXray: table/rule into tunN, dies with tunN on Xray restart) + `ensureNatRules` (kernel NAT: MASQUERADE/FORWARD, dies on iptables flush — fail2ban/docker).
 - **Process** (`internal/awg/process.go`): wraps `awg-quick up/down` (kernel interface lifecycle, not a daemon). No tun2socks — routing is via Xray TUN inbound.
 - **Instance** (`internal/awg/instance.go`): desired runtime state + `InstanceFromInbound` + `fingerprint`.
 - **Traffic** (`internal/awg/traffic.go`): `awg show <iface> transfer` parsing for per-peer byte accounting (replaces mtg's Prometheus HTTP scrape).
+- **Diagnostics** (`internal/awg/diagnostics.go`): read-only probe chain (interface UP, ip_forward, peers/handshakes, then mode-specific: MASQUERADE+FORWARD or tunN+rule+table). `Diagnose(inst)` → ordered `DiagCheck`s with evidence details; served by `GET /panel/api/inbounds/:id/awgDiagnostics` and rendered by the AWG form's diagnostics modal. Fixes belong to reconcile — diagnostics only makes failures visible.
 - **Orphans** (`internal/awg/orphans_{linux,other}.go`): sweep orphaned awg interfaces from a previous x-ui run.
 - **Job** (`internal/web/job/awg_job.go`): cron `@every 10s` — Reconcile desired inbounds + fold traffic deltas.
 - **Egress** (`internal/web/service/xray.go:injectAwgEgress`): inject TUN inbound into generated Xray config when `routeThroughXray` is set, symmetric with `injectMtprotoEgress`. Per-inbound gateway `10.254.(N%254).1/30` (separate /30 subnet, never conflicts with AWG tunnel subnet). Sniffing `{http,tls,quic, routeOnly:true}` on TUN inbound so domain/geosite rules work for AWG traffic.
 - **Runtime** (`internal/web/runtime/local.go`): delegate AWG `AddInbound`/`DelInbound` to `awg.GetManager()`; `AddUser`/`RemoveUser` are no-ops (peer sync via Reconcile).
-- **CPS** (`internal/awg/cps/`): CPS packet generators (TLS/DNS/SIP/QUIC) + AWGParams (Jc/Jmin/Jmax/S1-S4/H1-H4). TLS has browser-specific fingerprints (Chrome/Firefox/Safari).
+- **CPS** (`internal/awg/cps/`): CPS packet generators (TLS/DNS/SIP/QUIC) + AWGParams (Jc/Jmin/Jmax/S1-S4/H1-H4). TLS and QUIC have browser-specific fingerprints (Chrome/Firefox/Safari).
 - **Signature** (`internal/awg/signature/`): QUIC host capture — sends QUIC Initial to UDP 443, reads replies → I1-I5.
-- **Controller** (`internal/web/controller/awg.go`): `generateObfuscation` + `captureHost` API endpoints.
+- **Controller** (`internal/web/controller/awg.go`): `generateObfuscation` + `captureHost` + `awgDiagnostics` API endpoints.
 - **NAT** (`internal/awg/nat_{linux,other}.go`): `defaultRouteInterface()` for MASQUERADE target.
 - **Inbound needRestart** (`internal/web/service/inbound.go`): `awgRoutesThroughXray` — needRestart on AddInbound/DelInbound/UpdateInbound/SetInboundEnable so Xray regenerates config when routeThroughXray toggles.
 
@@ -164,9 +165,11 @@ Upstream rewrote the frontend from Vue to React + TypeScript + AntD v6 + Zod. AW
 
 ### 10. License
 
-LucX-UI components (`internal/awg/`, `internal/lucx/`, `internal/database/migrate_awg.go`, `frontend/src/schemas/protocols/inbound/awg.ts`, `frontend/src/pages/inbounds/form/protocols/awg.tsx`, `bin/install-awg-module.sh`) are licensed under **PolyForm Noncommercial 1.0.0**. Free for personal and educational use. Commercial use (including VPN resale) requires explicit written permission from the author.
+LucX-UI components (`internal/awg/`, `internal/lucx/`, `internal/database/migrate_awg.go`, `internal/web/controller/awg.go`, `internal/web/job/awg_job.go`, `internal/web/service/client_awg.go`, `frontend/src/schemas/protocols/inbound/awg.ts`, `frontend/src/pages/inbounds/form/protocols/awg.tsx`, `frontend/src/pages/inbounds/form/awg-inbound-id-context.ts`, `frontend/src/pages/clients/wireguardConfig.ts`, `bin/install-awg-module.sh`, `bin/check-lucx.sh`, `bin/pre-push`) are licensed under **PolyForm Noncommercial 1.0.0**. Free for personal and educational use. Commercial use (including VPN resale) requires explicit written permission from the author.
 
 Original 3x-ui code remains under GPL-3.0.
+
+**Every new LucX-owned file MUST carry the SPDX header** (see any existing file in `internal/awg/` for the exact 5-line block). Files with `//go:build` tags put the header after the constraint line; shell scripts after the shebang. The full split (which files are PolyForm vs GPL, why, commercial contact) is documented in [LICENSING.md](LICENSING.md); the canonical license text is [LICENSE-PolyForm-Noncommercial.txt](LICENSE-PolyForm-Noncommercial.txt). Upstream files with LUCX-HOOK blocks stay GPL — never put SPDX headers in them.
 
 ---
 
@@ -174,25 +177,28 @@ Original 3x-ui code remains under GPL-3.0.
 
 ```
 internal/awg/                      AWG sidecar (mirrors internal/mtproto/)
-├── manager.go                     Manager singleton: Ensure/Reconcile/StopAll/CollectTraffic/SyncPeers + renderServerConf/writeServerConfigFile + natPostUpPostDown + ensureXrayRouting (reconcile-loop route maintenance)
+├── manager.go                     Manager singleton: Ensure/Reconcile/StopAll/CollectTraffic/SyncPeers + renderServerConf/writeServerConfigFile + natPostUpPostDown + ensureXrayRouting (reconcile-loop route maintenance) + ensureNatRules/natRulesFor (reconcile-loop NAT recovery)
 ├── process.go                     Process wrapping awg-quick up/down + procLogWriter + awgConfigDir + awgQuick
 ├── instance.go                    Instance + InstanceFromInbound + fingerprint + PeerSpec
 ├── traffic.go                     scrapeTransfer via `awg show transfer` + Traffic type
+├── diagnostics.go                 Diagnose(inst) — read-only probe chain (interface/ip_forward/peers/NAT or TUN rules), prober interface, DiagCheck/Diagnostics
 ├── orphans_linux.go               killStrayAwgInterfaces
 ├── orphans_other.go               no-op off Linux
 ├── nat_linux.go                   defaultRouteInterface() — ip route show default
 ├── nat_other.go                   no-op off Linux
 ├── instance_test.go               Instance/fingerprint/render/NAT tests
-└── manager_test.go                Manager state-machine tests
+├── manager_test.go                Manager state-machine tests
+└── diagnostics_test.go            diagnose() with fake prober + parsers (route iface, handshakes)
 
 internal/awg/cps/                  CPS packet generators (TLS/DNS/SIP/QUIC) + AWGParams
-├── cps.go                         GenerateCPS + tlsPacket (Chrome/Firefox/Safari) + buildChromeHello/buildFirefoxHello/buildSafariHello + DNS/SIP/QUIC packet builders
+├── cps.go                         GenerateCPS + tlsPacket (Chrome/Firefox/Safari) + buildChromeHello/buildFirefoxHello/buildSafariHello + DNS/SIP/QUIC packet builders (quicInitialPacket respects browserProfile)
 ├── domains.go                     MimicryProfile + BrowserProfile + ObfProfile types + domain pools (RU/World)
 ├── params.go                      GenerateAWGParams (Jc/Jmin/Jmax/S1-S4/H1-H4) + SetRand for tests + rng
-└── cps_test.go                    CPS unit tests (all browsers, invariants, signatures)
+└── cps_test.go                    CPS unit tests (all browsers, invariants, signatures, QUIC browser)
 
 internal/awg/signature/            QUIC host capture (hoaxisr port)
-└── capture.go                     Capture(domain) — sends QUIC Initial, reads replies → I1-I5
+├── capture.go                     Capture(domain) — sends QUIC Initial, reads replies → I1-I5
+└── capture_test.go                normalizeDomain/fillPackets/varint/HKDF/ClientHello+Initial structure tests
 
 internal/lucx/                     Smart Cluster
 ├── parser/                        SSH output → NodeCreds
@@ -205,12 +211,12 @@ internal/database/
 
 internal/web/
 ├── runtime/local.go               AWG delegation in AddInbound/DelInbound (LUCX-HOOK)
-├── job/awg_job.go                 AwgJob cron — Reconcile + CollectTraffic + ensureXrayRouting
+├── job/awg_job.go                 AwgJob cron — Reconcile + CollectTraffic + ensureXrayRouting + ensureNatRules
 ├── service/xray.go                injectAwgEgress (TUN inbound + per-inbound gateway + sniffing) + AWG exclusion (LUCX-HOOK)
 ├── service/inbound.go             awgRoutesThroughXray + needRestart (LUCX-HOOK) + inboundAwgHints
 ├── service/client_awg.go          defaultAwgClients — keypair + PSK + address allocation
 ├── service/xray_config_inject_test.go  injectAwgEgress tests (gateway, sniffing, outboundTag)
-├── controller/awg.go               generateObfuscation + captureHost API endpoints (LUCX-HOOK)
+├── controller/awg.go               generateObfuscation + captureHost + awgDiagnostics API endpoints (LUCX-HOOK)
 └── web.go                         cadenceAwg + StopAll wiring (LUCX-HOOK)
 
 internal/database/model/model.go   AWG Protocol const + validate oneof (LUCX-HOOK)
@@ -218,14 +224,20 @@ internal/database/db.go            pruneLegacyAwgHiddenChildren call (LUCX-HOOK)
 
 frontend/src/
 ├── schemas/protocols/inbound/awg.ts        AwgInboundSettingsSchema (Zod)
-├── pages/inbounds/form/protocols/awg.tsx   AwgFields (React + AntD)
+├── pages/inbounds/form/protocols/awg.tsx   AwgFields (React + AntD) + diagnostics modal
+├── pages/inbounds/form/awg-inbound-id-context.ts  editing inbound id provider for diagnostics (LUCX)
+├── pages/inbounds/form/InboundFormModal.tsx       AwgInboundIdProvider wrap (LUCX-HOOK)
 ├── lib/xray/inbound-defaults.ts            createDefaultAwgInboundSettings (LUCX-HOOK)
 ├── schemas/protocols/inbound/index.ts      InboundSettingsSchema union (LUCX-HOOK)
 ├── schemas/primitives/protocol.ts          ProtocolSchema + Protocols map (LUCX-HOOK)
 └── pages/inbounds/form/protocols/index.ts  AwgFields export (LUCX-HOOK)
 
 bin/install-awg-module.sh          DKMS build of amneziawg kernel module + tools
+bin/check-lucx.sh                  gofumpt check for LucX files (37) — run before push; -w autofixes
+bin/pre-push                       git hook: check-lucx + fast go tests + PR/issues guard (AGENTS.md 11.5)
 install.sh                         Calls bin/install-awg-module.sh (LUCX-HOOK)
+LICENSING.md                       GPL-3.0 / PolyForm-NC split documentation
+LICENSE-PolyForm-Noncommercial.txt Canonical PolyForm NC 1.0.0 text
 ```
 
 ---
@@ -242,6 +254,12 @@ cd frontend && npm run typecheck && npm run lint
 # Full project build (requires frontend/dist)
 cd frontend && npm run build && cd ..
 go build -o /tmp/x-ui .
+
+# Pre-push hygiene (gofumpt on all LucX files — catches Windows/Linux drift before CI)
+bin/check-lucx.sh          # check;  bin/check-lucx.sh -w  # autofix
+
+# Optional: install the git hook that runs check-lucx + fast tests + PR/issues guard (step 11.5)
+cp bin/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
 ```
 
 ---
@@ -335,7 +353,7 @@ AWG routeThroughXray **принципиально сложнее** mtproto из-
 | Как трафик попадает в Xray | mtg сам dial 127.0.0.1:port | policy routing: `ip rule iif awgN lookup 1000+N` → `default dev tunN` |
 | NAT | не нужен (mtg → SOCKS → Xray) | не нужен (Xray → outbound сам натит) |
 | needRestart | `mtprotoRoutesThroughXray` в AddInbound/DelInbound/UpdateInbound | `awgRoutesThroughXray` — те же точки (добавлено в PR #13) |
-| Route maintenance | не нужен (SOCKS порт постоянный) | `ensureXrayRouting` в reconcile-цикле (10с) — tunN пересоздаётся при каждом рестарте Xray |
+| Route maintenance | не нужен (SOCKS порт постоянный) | `ensureXrayRouting` в reconcile-цикле (10с) — tunN пересоздаётся при каждом рестарте Xray. В kernel-режиме — `ensureNatRules` (тот же цикл): MASQUERADE/FORWARD умирают при iptables flush |
 | Sniffing | SOCKS inbound сам делает | TUN inbound — нужен явный `sniffing: {routeOnly:true}` (без него domain rules не работают) |
 
 Not to re-add: tun2socks (заменено TUN inbound), DNS в серверный .conf (ломает системный DNS), фиксированные table 100 + gateway 10.254.254.1/30 (ломают мульти-инбаунд).

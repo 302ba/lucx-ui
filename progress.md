@@ -537,6 +537,48 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 ---
 
+## Фикс: install.sh 404 — /releases/latest игнорировал prerelease-релизы (2026-07-17, v3.5.0-lucx.32)
+
+**Симптом:** `install.sh` падал с "Failed to fetch x-ui version" — `https://api.github.com/repos/AlexeyLCP/lucx-ui/releases/latest` возвращал 404.
+
+**Рут-коза:** GitHub API `/releases/latest` игнорирует релизы с `prerelease: true`. Все наши релизы (lucx.20–31) были prerelease → "latest" не существовал. `gh release list` их показывал, но API-эндпоинт, который дёргает install.sh, — нет.
+
+**Решение:** `.github/workflows/release.yml`: `prerelease: true` → `prerelease: false` (job upload-release-action). Релиз v3.5.0-lucx.32 создан уже как stable — `/releases/latest` резолвится, install.sh работает. Rolling dev-канал (`dev-latest`) не затронут: он живёт отдельным фиксированным тегом с `--latest=false`, стабильный канал не перебивает.
+
+**lucxVersion** → `lucx.32`.
+
+---
+
+## Пакет: самовосстановление NAT, версия из тега, AWG-диагностика, лицензия PolyForm NC (2026-07-18, v3.5.0-lucx.33)
+
+Пакет улучшений по итогам аудита форка (см. список в начале дня). Всё ниже — только LucX-файлы и LUCX-HOOK блоки.
+
+**1. ensureNatRules — самовосстановление NAT (kernel-режим).** PR #13 добавил `ensureXrayRouting` в reconcile для routeThroughXray, но plain-режим оставался с одноразовым PostUp: любой flush iptables (fail2ban reload, docker, руки админа) молча убивал интернет клиентов до рестарта интерфейса. Теперь `manager.go`: `natRulesFor` (чистый builder: MASQUERADE + FORWARD ×2) + `ensureNatRules` (check `-C` → add `-A` при отсутствии, + `sysctl ip_forward=1`) вызывается из `Ensure` и `Reconcile` рядом с `ensureXrayRouting`. No-op для routeThroughXray и пока awgN отсутствует. Тесты: `TestNatRulesFor`, `TestNatRulesFor_SkipsUnroutable`.
+
+**2. Версия из git-тега.** `const lucxVersion` → `var lucxVersion` (default `lucx.33` для локальных сборок); `release.yml` на tag-билдах инжектит суффикс из тега через `-ldflags -X` и **падает**, если тег и source default разошлись (`v3.5.0-lucx.N` ↔ `lucx.N` в config.go). `config_test.go` больше не хардкодит версию — derive из переменной + `TestLucxVersionFormat` (regex `^lucx\.\d+$`). Убирает класс CI-фейлов «забыли обновить тест при bump».
+
+**3. AWG runtime diagnostics.** Новое: `internal/awg/diagnostics.go` — read-only probe живого состояния: интерфейс UP, ip_forward, пиры/рукопожатия (`awg show peers/latest-handshakes`), в kernel-режиме MASQUERADE + FORWARD (через `natRulesFor`), в xray-режиме tunN + ip rule + route table. prober-интерфейс для тестов (fake replay). Endpoint `GET /panel/api/inbounds/:id/awgDiagnostics`; UI — кнопка «Диагностика» в AWG-форме (только для сохранённого инбаунда — id проброшен через `awg-inbound-id-context.ts` provider в InboundFormModal) с модалкой: Alert по `healthy` + список проверок с ✓/✗ и evidence-деталями + Refresh. 9 i18n-ключей × 13 локалей. Тесты: 7 штук (`TestDiagnose_*`, `TestParseDefaultRouteInterface`, `TestParseLatestHandshakes`).
+
+**4. signature — первые тесты пакета.** `capture_test.go`: `normalizeDomain`, `fillPackets` (truncation 1500, max 5), `appendVarint` (границы 63/64, 16383/16384), `hkdfExpandLabel` (детерминизм), `buildTLSClientHello`/`buildQUICInitial` структурные инварианты (0x01, length, SNI, ALPN h3, ≥1200 байт, long-header bit, QUIC v1, DCID len 8). Был единственный LucX-пакет без покрытия.
+
+**5. QUIC уважает browserProfile.** `quicInitialPacket(domain, browser)` — embedded ClientHello теперь строится профильным builder'ом (Chrome/Firefox/Safari) вместо всегда-Chrome. Тест `TestQuicInitialPacket_RespectsBrowser`.
+
+**6. i18n.** `awgBrowser*` (5 ключей) добавлены в 11 локалей (ar/es/fa/id/ja/pt/tr/uk/vi/zh-CN/zh-TW) — до этого были только en/ru, остальные падали в fallback. JSON-aware вставка через Node-скрипт с byte-identical round-trip (diff +7/-1 на файл). Плюс 9 `awgDiag*` ключей × 13 локалей.
+
+**7. mutation.yml timeout 120→360** (LUCX-HOOK) — матрица service/database упиралась в 2ч и job отменялся GitHub'ом как cancelled.
+
+**8. bin/check-lucx.sh + bin/pre-push.** `check-lucx.sh` — gofumpt по изолированным пакетам + всем файлам с LUCX-HOOK (37 файлов), `-w` для автофикса — ловит Windows/Linux-дрейф форматирования до CI. `pre-push` — git hook (установка `cp bin/pre-push .git/hooks/pre-push`): gofumpt + быстрые go test (awg/lucx/config) + проверка открытых PR (блокирует) и issues (предупреждает) на AlexeyLCP/lucx-ui — механизирует AGENTS.md шаги 6 и 11.5.
+
+**9. Лицензия PolyForm Noncommercial 1.0.0.** Split-лицензирование: upstream-код — GPL-3.0, LucX-компоненты — PolyForm NC (свободно для личного/образовательного использования; коммерция, включая перепродажу VPN, — по письменному разрешению). Новое: `LICENSE-PolyForm-Noncommercial.txt` (канонический текст с polyformproject.org), `LICENSING.md` (граница лицензий, список LucX-файлов, контакт). SPDX-заголовки добавлены в 12 файлов, где их не было (`awg_job.go`, `nat_*`, `orphans_*`, `awg.ts`, `awg.tsx`, `wireguardConfig.ts`, `awg-inbound-id-context.ts`, `bin/install-awg-module.sh`, `bin/check-lucx.sh`, `bin/pre-push`); остальные 20 LucX-файлов уже имели заголовки.
+
+**10. README — LucX-секция** (LUCX-HOOK блок после badges): что такое форк, AWG-фичи, browser profiles, routeThroughXray, диагностика, install-команда с `AlexeyLCP/lucx-ui`, ссылка на LICENSING.md. Раньше README был чисто upstream с бейджами mhsanaei/3x-ui.
+
+**11. Мелочи.** `.gitignore`: `.playwright-mcp/`. Удалены пустые директории-остатки старой ветки (`internal/lucx/{controller,integration,telegram,telemt}`) — не трекались git.
+
+**lucxVersion** → `lucx.33` (default в source; релизный бинарник получает версию из тега через -ldflags).
+
+---
+
 ## Заметки
 
 - v3.5.0 релиз 2026-07-12 (вчера)
