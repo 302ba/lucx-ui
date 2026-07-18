@@ -2,8 +2,19 @@ package config
 
 import (
 	"os"
+	"regexp"
 	"testing"
 )
+
+// LUCX-HOOK: the default lucxVersion compiled into local builds must always
+// look like "lucx.N" — release.yml derives the release suffix from the git tag
+// and refuses to publish when the two diverge, so a malformed default would
+// silently desync local and release binaries.
+func TestLucxVersionFormat(t *testing.T) {
+	if !regexp.MustCompile(`^lucx\.\d+$`).MatchString(lucxVersion) {
+		t.Fatalf("lucxVersion = %q, want form lucx.N", lucxVersion)
+	}
+}
 
 func TestGetPanelVersion(t *testing.T) {
 	orig := buildCommit
@@ -15,8 +26,10 @@ func TestGetPanelVersion(t *testing.T) {
 	}
 
 	// LUCX-HOOK: dev builds carry the LucX suffix, so the expected form is
-	// "<lucxVersion>+dev+<commit>" (e.g. "lucx.22+dev+1d1128cf").
-	wantDev := "lucx.32+dev+1d1128cf"
+	// "<lucxVersion>+dev+<commit>" (e.g. "lucx.22+dev+1d1128cf"). Derived from
+	// the lucxVersion variable (not hardcoded) so a version bump never breaks
+	// this test — release.yml separately guards tag-vs-source divergence.
+	wantDev := lucxVersion + "+dev+1d1128cf"
 	buildCommit = "1d1128cf"
 	if got := GetPanelVersion(); got != wantDev {
 		t.Fatalf("dev build: GetPanelVersion = %q, want %q", got, wantDev)

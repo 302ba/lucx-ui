@@ -90,6 +90,19 @@ jobs:
           LDFLAGS="-w -s -linkmode external -extldflags '-static'"
           if [[ "$GITHUB_REF" != refs/tags/* ]]; then
             LDFLAGS="$LDFLAGS -X github.com/mhsanaei/3x-ui/v3/internal/config.buildCommit=${GITHUB_SHA::8} -X github.com/mhsanaei/3x-ui/v3/internal/config.buildDate=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          else
+            # LUCX-HOOK: derive the LucX suffix from the tag (v3.5.0-lucx.33 ->
+            # lucx.33) and inject it, so the released binary always matches its
+            # tag. Fail the release when the source default was not bumped —
+            # that desync would make local builds lie about their version.
+            TAG_LUCX="${GITHUB_REF_NAME##*-}"
+            SRC_LUCX=$(grep -oP 'var lucxVersion = "\Klucx\.\d+(?=")' internal/config/config.go)
+            if [[ -z "$TAG_LUCX" || "$TAG_LUCX" != "$SRC_LUCX" ]]; then
+              echo "Tag suffix '${TAG_LUCX}' != lucxVersion '${SRC_LUCX}' in internal/config/config.go" >&2
+              echo "Bump lucxVersion to match the tag, commit, and re-tag." >&2
+              exit 1
+            fi
+            LDFLAGS="$LDFLAGS -X github.com/mhsanaei/3x-ui/v3/internal/config.lucxVersion=${TAG_LUCX}"
           fi
           go build -ldflags "$LDFLAGS" -o xui-release -v main.go
           file xui-release
