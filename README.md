@@ -1,3 +1,128 @@
+<!-- LUCX-HOOK: LucX-UI fork README — RU+EN lead sections, license, credits, sources. Keep in sync with LICENSING.md and AGENTS.md. -->
+# LucX-UI
+
+<p align="center">
+  <a href="https://github.com/AlexeyLCP/lucx-ui/releases"><img src="https://img.shields.io/github/v/release/AlexeyLCP/lucx-ui" alt="Release"></a>
+  <a href="https://github.com/AlexeyLCP/lucx-ui/actions"><img src="https://img.shields.io/github/actions/workflow/status/AlexeyLCP/lucx-ui/release.yml.svg" alt="Build"></a>
+  <a href="https://github.com/AlexeyLCP/lucx-ui/releases/latest"><img src="https://img.shields.io/github/downloads/AlexeyLCP/lucx-ui/total.svg" alt="Downloads"></a>
+  <a href="LICENSING.md"><img src="https://img.shields.io/badge/license-GPL--3.0%20%2B%20PolyForm--NC-blue" alt="License"></a>
+</p>
+
+> [!WARNING]
+> **Только для личного, некоммерческого, научного, исследовательского и образовательного использования.** Коммерческое использование — включая перепродажу VPN-доступа, платные панели и подписки, построенные на этом коде, — только с явного письменного разрешения автора. Не используйте в противоправных целях.
+>
+> **For personal, non-commercial, scientific, research, and educational use only.** Commercial use — including VPN resale, paid panels, or subscription services built on this code — requires explicit written permission from the author. Do not use for illegal purposes.
+
+---
+
+## 🇷🇺 О проекте
+
+**LucX-UI** — форк [3x-ui](https://github.com/MHSanaei/3x-ui) (v3.5.0) с нативной поддержкой **AmneziaWG (AWG)**. AWG работает как kernel-interface сайдкар — в точности по той же архитектуре, по которой в апстриме устроен MTProto (mtg): панель управляет жизненным циклом, учитывает трафик, а Xray при желании маршрутизирует.
+
+### Что мы добавили — и что работает
+
+- ✅ **AWG-инбаунды** — kernel-сайдкар на `awg-quick`: создание, reconcile каждые 10 секунд, подчистка осиротевших интерфейсов, DKMS-установщик модуля ядра.
+- ✅ **Обфускация** — профили Lite/Standard/Pro (Jc/Jmin/Jmax/S1–S4/H1–H4) и CPS-мимикрия пакетов: TLS, DNS, SIP, QUIC.
+- ✅ **TLS-отпечатки браузеров** — Chrome (GREASE), Firefox 120+ (NSS-порядок, padding), Safari 16+ (Apple-порядок, TLS 1.1). Для TLS и QUIC.
+- ✅ **Захват сигнатуры с живого хоста** — реальное QUIC-рукопожатие с front-домена превращается в I1–I5.
+- ✅ **Клиенты** — QR-коды, скачивание `.conf`, учёт трафика per-peer (`awg show transfer`).
+- ✅ **Два режима маршрутизации:**
+  - **Kernel NAT** — прямая маршрутизация ядра; NAT-правила самовосстанавливаются reconcile-циклом после flush iptables.
+  - **«Маршрутизировать через Xray»** — трафик идёт через весь routing-pipeline Xray (доменные/geosite-правила, балансировщики, каскады-аутбаунды) через TUN-инбаунд с policy routing и sniffing'ом.
+- ✅ **Диагностика из панели** — одна кнопка в форме инбаунда: интерфейс, ip_forward, пиры/рукопожатия, NAT/TUN-правила — сразу видно, где обрыв.
+- ✅ **Проверено в бою** на VPS тестеров: handshake, ICMP, HTTPS, учёт трафика, каскады, оба режима маршрутизации.
+
+### Установка
+
+```bash
+bash <(curl -fL https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/main/install.sh)
+```
+
+Ставит панель из [последнего релиза](https://github.com/AlexeyLCP/lucx-ui/releases/latest), systemd-юнит, Xray-core и mtg (из апстрим-релиза 3x-ui) и собирает модуль ядра AmneziaWG через DKMS (`bin/install-awg-module.sh`).
+
+### Лицензия
+
+Проект использует **две лицензии** (подробности — [LICENSING.md](LICENSING.md)):
+
+| Часть | Лицензия |
+|---|---|
+| Оригинальный код 3x-ui | **GPL-3.0** (как требует апстрим) |
+| Компоненты LucX (`internal/awg/`, `internal/lucx/`, AWG-frontend, скрипты) | **PolyForm Noncommercial 1.0.0** |
+
+Это значит: **свободно** для личного, некоммерческого, научного, исследовательского и образовательного использования — хоть десять панелей для себя и друзей. **Коммерческое использование** (перепродажа VPN, платные сервисы на этом коде, встраивание в коммерческий продукт) — только с письменного разрешения автора: [issues](https://github.com/AlexeyLCP/lucx-ui/issues) или владелец репозитория. Заголовки `SPDX-License-Identifier` в каждом файле делают границу однозначной: нет заголовка — это GPL-3.0.
+
+### Благодарности
+
+- **VladufQa** — тестирование на боевом VPS (ruvds): первые handshake'и, трафик, каскады, багрепорты по маршрутизации.
+- **Kirill Rudenko** — тестирование (runode) и **PR #13**: needRestart для AWG, iif policy routing, per-inbound таблицы/gateway, reconcile-ensure маршрута, sniffing — то, что заставило «Маршрутизировать через Xray» реально работать.
+- Команде **3x-ui** — за отличную базу и архитектуру сайдкаров, которую мы зеркалим.
+
+### Источники идей и кода
+
+- [MHSanaei/3x-ui](https://github.com/MHSanaei/3x-ui) — база форка (GPL-3.0), архитектура MTProto-сайдкара как эталон.
+- [AmneziaVPN](https://github.com/amnezia-vpn) — сам протокол AmneziaWG и kernel-модуль.
+- [pumbaX/awg-multi-script](https://github.com/pumbaX/awg-multi-script) — паттерн PostUp NAT (MASQUERADE + FORWARD), генераторы QUIC Initial без криптобиблиотек, подход к DKMS-установке.
+- [hoaxisr/awg-manager](https://github.com/hoaxisr/awg-manager) — порт захвата QUIC-сигнатуры (`internal/awg/signature/`), предупреждение о TLS-несовместимости.
+- [bogdanfinn/tls-client](https://github.com/bogdanfinn/tls-client) и [refraction-networking/utls](https://github.com/refraction-networking/utls) — репрезентативные TLS-профили Firefox/Safari для наших ClientHello-пресетов.
+
+---
+
+## 🇬🇧 About
+
+**LucX-UI** is a fork of [3x-ui](https://github.com/MHSanaei/3x-ui) (v3.5.0) with native **AmneziaWG (AWG)** support. AWG runs as a kernel-interface sidecar — mirroring the exact architecture upstream uses for MTProto (mtg): the panel owns the lifecycle and traffic accounting, and Xray can optionally route the traffic.
+
+### What we added — and what works
+
+- ✅ **AWG inbounds** — kernel sidecar on `awg-quick`: creation, 10-second reconcile, orphan sweep, DKMS kernel-module installer.
+- ✅ **Obfuscation** — Lite/Standard/Pro presets (Jc/Jmin/Jmax/S1–S4/H1–H4) and CPS packet mimicry: TLS, DNS, SIP, QUIC.
+- ✅ **Browser TLS fingerprints** — Chrome (GREASE), Firefox 120+ (NSS ordering, padding), Safari 16+ (Apple ordering, TLS 1.1). For TLS and QUIC.
+- ✅ **Live signature capture** — a real QUIC handshake from a front domain becomes your I1–I5.
+- ✅ **Clients** — QR codes, `.conf` download, per-peer traffic accounting (`awg show transfer`).
+- ✅ **Two routing modes:**
+  - **Kernel NAT** — plain kernel forwarding; NAT rules self-heal via the reconcile loop after iptables flushes.
+  - **Route through Xray** — traffic flows through Xray's full routing pipeline (domain/geosite rules, balancers, chained outbounds) via a TUN inbound with policy routing and sniffing.
+- ✅ **In-panel diagnostics** — one button in the inbound form: interface, ip_forward, peers/handshakes, NAT/TUN rules — the breakage point is immediately visible.
+- ✅ **Battle-tested** on testers' VPSs: handshake, ICMP, HTTPS, traffic accounting, cascades, both routing modes.
+
+### Install
+
+```bash
+bash <(curl -fL https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/main/install.sh)
+```
+
+Installs the panel from the [latest release](https://github.com/AlexeyLCP/lucx-ui/releases/latest), the systemd unit, Xray-core and mtg (from the upstream 3x-ui release), and builds the AmneziaWG kernel module via DKMS (`bin/install-awg-module.sh`).
+
+### License
+
+This project is under **two licenses** (details in [LICENSING.md](LICENSING.md)):
+
+| Part | License |
+|---|---|
+| Original 3x-ui code | **GPL-3.0** (as required by upstream) |
+| LucX components (`internal/awg/`, `internal/lucx/`, AWG frontend, scripts) | **PolyForm Noncommercial 1.0.0** |
+
+In practice: **free** for personal, non-commercial, scientific, research, and educational use — run as many panels as you like. **Commercial use** (VPN resale, paid services built on this code, embedding into a commercial product) requires explicit written permission from the author — open an [issue](https://github.com/AlexeyLCP/lucx-ui/issues) or contact the repository owner. Per-file `SPDX-License-Identifier` headers make the boundary unambiguous: no header means GPL-3.0.
+
+### Acknowledgements
+
+- **VladufQa** — live-server testing (ruvds): first handshakes, traffic, cascades, routing bug reports.
+- **Kirill Rudenko** — testing (runode) and **PR #13**: AWG needRestart, iif policy routing, per-inbound tables/gateways, reconcile route-ensure, sniffing — the work that made "Route through Xray" actually function.
+- The **3x-ui** team — for an excellent base and the sidecar architecture we mirror.
+
+### Credits: ideas and code
+
+- [MHSanaei/3x-ui](https://github.com/MHSanaei/3x-ui) — fork base (GPL-3.0), the MTProto sidecar architecture we mirror.
+- [AmneziaVPN](https://github.com/amnezia-vpn) — the AmneziaWG protocol itself and the kernel module.
+- [pumbaX/awg-multi-script](https://github.com/pumbaX/awg-multi-script) — PostUp NAT pattern (MASQUERADE + FORWARD), crypto-lib-free QUIC Initial generators, DKMS install approach.
+- [hoaxisr/awg-manager](https://github.com/hoaxisr/awg-manager) — the QUIC signature capture we ported (`internal/awg/signature/`), and the TLS-incompatibility warning.
+- [bogdanfinn/tls-client](https://github.com/bogdanfinn/tls-client) and [refraction-networking/utls](https://github.com/refraction-networking/utls) — representative Firefox/Safari TLS profiles behind our ClientHello presets.
+
+---
+
+*Everything below is the upstream **3x-ui** documentation, kept intact for reference. LucX-UI tracks upstream releases via migration (not rebase).*
+
+<!-- END LUCX-HOOK -->
+
 [English](/README.md) | [فارسی](/README.fa_IR.md) | [العربية](/README.ar_EG.md) | [中文](/README.zh_CN.md) | [Español](/README.es_ES.md) | [Русский](/README.ru_RU.md) | [Türkçe](/README.tr_TR.md)
 
 <p align="center">
@@ -22,31 +147,6 @@ Built as an enhanced fork of the original X-UI project, 3X-UI adds broader proto
 
 > [!IMPORTANT]
 > This project is intended for personal use only. Please do not use it for illegal purposes or in a production environment.
-
-<!-- LUCX-HOOK: LucX-UI fork section — AWG sidecar, obfuscation, fork install. Keep in sync with AGENTS.md. -->
----
-
-> **LucX-UI** — this repository is a fork of [3x-ui](https://github.com/MHSanaei/3x-ui) (v3.5.0) that adds native **AmneziaWG (AWG)** support as a kernel-interface sidecar, symmetric with the built-in MTProto (mtg) sidecar.
-
-### LucX additions
-
-- **AmneziaWG inbounds** — full AWG support: kernel-interface sidecar (`awg-quick`), per-peer traffic accounting, client QR codes and `.conf` download, DKMS kernel-module installer.
-- **Obfuscation profiles** — Jc/Jmin/Jmax/S1–S4/H1–H4 presets (Lite/Standard/Pro) plus CPS packet mimicry (TLS, DNS, SIP, QUIC) with **Chrome / Firefox 120+ / Safari 16+** TLS fingerprints, and real QUIC handshake capture from a front domain.
-- **Route through Xray (optional)** — pass AWG traffic through Xray's routing pipeline (domain/geosite rules, balancers, outbounds) via a TUN inbound with policy routing and sniffing, or use plain kernel NAT.
-- **Runtime diagnostics** — one-click probe of the live sidecar state (interface, ip_forward, peer handshakes, NAT/TUN rules) from the inbound form.
-
-### Install (LucX-UI fork)
-
-```bash
-bash <(curl -fL https://raw.githubusercontent.com/AlexeyLCP/lucx-ui/main/install.sh)
-```
-
-Releases: [AlexeyLCP/lucx-ui/releases](https://github.com/AlexeyLCP/lucx-ui/releases/latest). The AWG kernel module is installed by the bundled `bin/install-awg-module.sh` (DKMS).
-
-LucX-specific components (`internal/awg/`, `internal/lucx/`, AWG frontend files, `bin/install-awg-module.sh`) are licensed under **PolyForm Noncommercial 1.0.0** — see [LICENSING.md](LICENSING.md). The original 3x-ui code remains GPL-3.0.
-
----
-<!-- END LUCX-HOOK -->
 
 ## Features
 

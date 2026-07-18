@@ -575,6 +575,8 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 **11. Мелочи.** `.gitignore`: `.playwright-mcp/`. Удалены пустые директории-остатки старой ветки (`internal/lucx/{controller,integration,telegram,telemt}`) — не трекались git.
 
+**12. README переписан** (тот же день, follow-up): LucX-блок поднят в самый верх — сегмент на русском 🇷🇺 + английский 🇬🇧, предупреждение о личном/некоммерческом/научном/образовательном использовании (WARNING-блок в шапке, RU+EN), расширенная таблица лицензий (GPL-3.0 ↔ PolyForm NC), благодарности тестерам (VladufQa, Kirill Rudenko — PR #13) и команде 3x-ui, отсылки к проектам-источникам (3x-ui, AmneziaVPN, pumbaX/awg-multi-script, hoaxisr/awg-manager, bogdanfinn/tls-client + refraction-networking/utls), список «что добавлено и работает» с ✅. Upstream-документация сохранена ниже с маркером-разделителем.
+
 **lucxVersion** → `lucx.33` (default в source; релизный бинарник получает версию из тега через -ldflags).
 
 ---
