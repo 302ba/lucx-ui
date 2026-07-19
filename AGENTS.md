@@ -272,11 +272,10 @@ cp bin/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
 
 | Alias | IP | Хост | Назначение |
 |---|---|---|---|
-| `lucx-test1` | 144.31.224.212 | skinny-azure-snail.play2go.cloud | Боевая тестовая панель (x-ui active, AWG работает) |
-| `lucx-test2` | 144.31.157.106 | poor-rose-snake.play2go.cloud | Чистая машина для install-тестов (x-ui не установлен; осиротевший awg0 от старого запуска — кейс для orphan sweep) |
+| `lucx-test2` | 144.31.157.106 | poor-rose-snake.play2go.cloud | **Наш единственный тестовый сервер** — install-тесты, AWG runtime, проверка релизов |
 
-- **Testers:** VladufQa, Kirill Rudenko — обновляются через `x-ui update` или reinstall. По состоянию на 2026-07-18: test1 на lucx.17 (старьё до routing-фиксов), test2 без панели.
-- Ничего не менять на test1 без запроса — там живой инбаунд тестеров. test2 можно использовать для чистой установки (`install.sh` из README) — заодно проверяет релизный tarball и DKMS на свежем ядре.
+- **test1 (144.31.224.212)** — с 2026-07-19 **НЕ НАШ**: отдан под тестирование другого продукта. Не трогать, не деплоить, не логиниться без запроса.
+- **Testers:** VladufQa, Kirill Rudenko — обновляются сами через `x-ui update` или reinstall; на их панели без запроса не лезем.
 
 ---
 
