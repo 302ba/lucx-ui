@@ -7,6 +7,10 @@
 package service
 
 import (
+	"encoding/json"
+	"net/netip"
+	"strings"
+
 	"github.com/mhsanaei/3x-ui/v3/internal/database/model"
 	"github.com/mhsanaei/3x-ui/v3/internal/util/common"
 	wgutil "github.com/mhsanaei/3x-ui/v3/internal/util/wireguard"
@@ -16,6 +20,33 @@ import (
 // intentionally distinct from WireGuard's 10.0.0.0/24 so an AWG inbound and a
 // WireGuard inbound on the same panel don't collide on peer addresses.
 const defaultAwgBase = "10.8.0.0/24"
+
+// awgAllocationFallback derives the allocation subnet from the inbound's
+// tunnel address (e.g. "10.9.0.1/24" → "10.9.0.0/24"), falling back to
+// defaultAwgBase when the address is empty or unparseable.
+func awgAllocationFallback(serverAddr string) string {
+	addr := strings.TrimSpace(serverAddr)
+	if addr == "" {
+		return defaultAwgBase
+	}
+	prefix, err := netip.ParsePrefix(addr)
+	if err != nil {
+		return defaultAwgBase
+	}
+	return prefix.Masked().String()
+}
+
+// awgSettingsAddress extracts the tunnel address from an AWG inbound's
+// settings JSON ("" when absent or malformed).
+func awgSettingsAddress(settings string) string {
+	var s struct {
+		Address string `json:"address"`
+	}
+	if err := json.Unmarshal([]byte(settings), &s); err != nil {
+		return ""
+	}
+	return s.Address
+}
 
 // defaultAwgClients fills in blank AmneziaWG credentials for newly added
 // clients, mirroring defaultWireguardClients: a generated Curve25519 keypair
@@ -29,12 +60,18 @@ const defaultAwgBase = "10.8.0.0/24"
 // AmneziaWG uses the same Curve25519 base keypair and PSK format as WireGuard;
 // only the obfuscation parameters (Jc/S1-S4/H1-H4/I1-I5) are AWG-specific and
 // live on the inbound (shared by all peers), not on the client.
-func defaultAwgClients(existing, clients []model.Client, interfaceClients []any) error {
+//
+// serverAddr is the inbound's tunnel address (settings.address, e.g.
+// "10.9.0.1/24"): client addresses are allocated from ITS subnet, not from a
+// hardcoded pool — otherwise a first client on a non-default tunnel subnet
+// would get an address the server never routes (caught live on a 10.9.0.1/24
+// inbound whose first client received 10.8.0.2).
+func defaultAwgClients(existing, clients []model.Client, interfaceClients []any, serverAddr string) error {
 	used := make([]string, 0)
 	for i := range existing {
 		used = append(used, existing[i].AllowedIPs...)
 	}
-	base := wireguardAllocationBase(used, defaultAwgBase)
+	base := wireguardAllocationBase(used, awgAllocationFallback(serverAddr))
 	for i := range clients {
 		c := &clients[i]
 		if c.PrivateKey == "" && c.PublicKey == "" {

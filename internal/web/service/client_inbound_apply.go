@@ -364,8 +364,11 @@ func (s *ClientService) addInboundClient(inboundSvc *InboundService, data *model
 	}
 	// LUCX-HOOK: AWG — generate blank Curve25519 keypair/PSK and allocate a
 	// unique tunnel address for newly added AWG clients, mirroring WireGuard.
+	// The allocation subnet comes from the inbound's own tunnel address, not a
+	// hardcoded pool, so non-default subnets get correctly routed addresses.
 	if oldInbound.Protocol == model.AWG {
-		if dErr := defaultAwgClients(existingClients, clients, interfaceClients); dErr != nil {
+		serverAddr := awgSettingsAddress(oldInbound.Settings)
+		if dErr := defaultAwgClients(existingClients, clients, interfaceClients, serverAddr); dErr != nil {
 			return false, dErr
 		}
 	}
