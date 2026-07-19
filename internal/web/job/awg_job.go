@@ -40,12 +40,16 @@ func (j *AwgJob) Run() {
 	}
 
 	var desired []awg.Instance
+	routedTags := make(map[string]bool)
 	for _, ib := range inbounds {
 		if ib.Protocol != model.AWG || !ib.Enable || ib.NodeID != nil {
 			continue
 		}
 		if inst, ok := awg.InstanceFromInbound(ib); ok {
 			desired = append(desired, inst)
+			if inst.RouteThroughXray {
+				routedTags[inst.Tag] = true
+			}
 		}
 	}
 
@@ -76,8 +80,16 @@ func (j *AwgJob) Run() {
 		emailsByTag[ib.Tag] = byKey
 	}
 
+	// A routed inbound's total is already metered by Xray at the injected TUN
+	// inbound (same tag), so only non-routed inbounds are rolled up here —
+	// otherwise routeThroughXray inbounds count every byte twice (kernel
+	// counters + Xray stats). Per-client deltas are always kept: the TUN
+	// bridge cannot tell AWG peers apart. Mirrors mtproto_job's routedTags.
 	traffics := make([]*xray.Traffic, 0, len(deltas))
 	for _, d := range deltas {
+		if routedTags[d.Tag] {
+			continue
+		}
 		traffics = append(traffics, &xray.Traffic{
 			IsInbound: true,
 			Tag:       d.Tag,
