@@ -355,6 +355,8 @@ x-ui-linux-amd64.tar.gz → x-ui/
 
 Version updates (еженедельные PR на новые версии) отключены — `updates: []` в `.github/dependabot.yml`. Это убирает шум минорных обновлений npm/gomod/github-actions, которые накапливались как незакрытые PR (10 шт. были закрыты перед миграцией на v3.5.0). Security updates (CVE) остаются включёнными через GitHub Settings → Dependabot security updates — Dependabot автоматически создаст PR при найденной уязвимости в любой зависимости. Чтобы вернуть version updates — замените `updates: []` на полный список (шаблон в комментарии в yml-файле).
 
+**⚠️ Готcha (2026-07-18):** `updates: []` НЕ останавливает **групповые** version-update PR, если они включены в GitHub UI (Settings → Advanced Security → Dependabot grouped version updates) — это отдельный тумблер, не читающий наш yml. 18.07 появилось 10 PR (grpc, antd, vite, storybook, actions/*) — закрыты, к каждому коммент «version updates отключены». Dependabot на закрытый PR отвечает «won't notify you again about this release, но напишет при новой версии» — то есть периодически возвращается. **Полное отключение:** Settings → Advanced Security → выключить Dependabot version updates (+ grouped). Каждый новый version-update PR — закрывать с тем же комментом; **проверяй очередь перед каждым пушем (шаг 11.5)**.
+
 ### 4. routeThroughXray — сложнее чем mtproto
 
 AWG routeThroughXray **принципиально сложнее** mtproto из-за kernel→userspace моста:
