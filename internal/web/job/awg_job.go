@@ -15,11 +15,14 @@ import (
 )
 
 // AwgJob reconciles the running AWG kernel-interface sidecars against the
-// enabled AWG inbounds in the database, restarts any that crashed, and folds
-// the per-inbound traffic scraped from `awg show transfer` into the usual
-// inbound traffic accounting. Mirrors MtprotoJob one-for-one.
+// enabled AWG inbounds in the database, restarts any that crashed, folds the
+// per-inbound and per-client traffic scraped from `awg show dump` into the
+// usual accounting, and reports online clients from fresh handshakes (AWG
+// clients never pass through Xray's stats API, so without this they show
+// offline forever). Mirrors MtprotoJob.
 type AwgJob struct {
 	inboundService service.InboundService
+	clientService  service.ClientService
 }
 
 // NewAwgJob creates a new AWG reconcile/traffic job instance.
@@ -49,10 +52,30 @@ func (j *AwgJob) Run() {
 	mgr := awg.GetManager()
 	mgr.Reconcile(desired)
 
-	deltas := mgr.CollectTraffic()
-	if len(deltas) == 0 {
-		return
+	deltas, peerDeltas, onlineByTag := mgr.CollectTraffic()
+
+	// Map peer public keys to panel clients (email) for per-client accounting
+	// and online status. One DB read per AWG inbound per tick; AWG inbounds
+	// are few and their client lists are small.
+	emailsByTag := make(map[string]map[string]string, len(onlineByTag))
+	for _, ib := range inbounds {
+		if ib.Protocol != model.AWG || !ib.Enable || ib.NodeID != nil {
+			continue
+		}
+		clients, err := j.clientService.ListForInbound(nil, ib.Id)
+		if err != nil {
+			logger.Warning("awg job: list clients for inbound", ib.Id, "failed:", err)
+			continue
+		}
+		byKey := make(map[string]string, len(clients))
+		for _, c := range clients {
+			if c.Enable && c.PublicKey != "" {
+				byKey[c.PublicKey] = c.Email
+			}
+		}
+		emailsByTag[ib.Tag] = byKey
 	}
+
 	traffics := make([]*xray.Traffic, 0, len(deltas))
 	for _, d := range deltas {
 		traffics = append(traffics, &xray.Traffic{
@@ -62,7 +85,39 @@ func (j *AwgJob) Run() {
 			Down:      d.Down,
 		})
 	}
-	if _, _, err := j.inboundService.AddTraffic(traffics, nil); err != nil {
-		logger.Warning("awg job: add traffic failed:", err)
+
+	clientTraffics := make([]*xray.ClientTraffic, 0, len(peerDeltas))
+	for _, pd := range peerDeltas {
+		email, ok := emailsByTag[pd.Tag][pd.PublicKey]
+		if !ok {
+			continue
+		}
+		clientTraffics = append(clientTraffics, &xray.ClientTraffic{
+			Email: email,
+			Up:    pd.Up,
+			Down:  pd.Down,
+		})
 	}
+
+	if len(traffics) > 0 || len(clientTraffics) > 0 {
+		if _, _, err := j.inboundService.AddTraffic(traffics, clientTraffics); err != nil {
+			logger.Warning("awg job: add traffic failed:", err)
+		}
+	}
+
+	// Online status: fresh handshake (<180 s) = online. activeTags marks the
+	// running AWG inbounds so the "active inbound" gating works for AWG too.
+	var onlineEmails []string
+	for tag, keys := range onlineByTag {
+		for _, key := range keys {
+			if email, ok := emailsByTag[tag][key]; ok {
+				onlineEmails = append(onlineEmails, email)
+			}
+		}
+	}
+	activeTags := make([]string, 0, len(desired))
+	for _, inst := range desired {
+		activeTags = append(activeTags, inst.Tag)
+	}
+	j.inboundService.RefreshLocalOnlineClients(onlineEmails, activeTags)
 }

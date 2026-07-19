@@ -7,7 +7,6 @@
 package awg
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"net/netip"
@@ -16,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/mhsanaei/3x-ui/v3/internal/logger"
 )
@@ -167,9 +167,29 @@ func (m *Manager) StopAll() {
 	}
 }
 
-// CollectTraffic scrapes each running AWG interface via `awg show transfer`
-// and returns the per-inbound byte deltas since the previous scrape.
-func (m *Manager) CollectTraffic() []Traffic {
+// PeerTraffic is a per-peer (per-client) traffic delta: same rx/tx meaning as
+// Traffic but attributed to one peer public key, so the panel can account
+// per-client traffic for AWG like mtproto does per email.
+type PeerTraffic struct {
+	Tag       string
+	PublicKey string
+	Up        int64
+	Down      int64
+}
+
+// handshakeOnlineTTL is the window in seconds in which a completed handshake
+// means the peer is online: WireGuard rekeys every ~120 s (REKEY_TIMEOUT), so
+// a handshake older than 180 s implies a dead session — the convention used
+// by WireGuard dashboards.
+const handshakeOnlineTTL = 180
+
+// CollectTraffic scrapes each running AWG interface once and returns three
+// views of the same data: per-inbound byte deltas (for the inbound counters),
+// per-peer byte deltas keyed by public key (for per-client accounting), and
+// the online peers per tag (handshake within handshakeOnlineTTL) so the
+// panel's online status works for AWG clients, which never pass through
+// Xray's stats API.
+func (m *Manager) CollectTraffic() ([]Traffic, []PeerTraffic, map[string][]string) {
 	type snap struct {
 		id       int
 		ifname   string
@@ -196,55 +216,65 @@ func (m *Manager) CollectTraffic() []Traffic {
 	m.mu.Unlock()
 
 	out := make([]Traffic, 0, len(snaps))
+	peerOut := make([]PeerTraffic, 0, len(snaps))
+	online := make(map[string][]string, len(snaps))
+	now := time.Now().Unix()
 	for _, s := range snaps {
-		rx, tx, ok := scrapeTransfer(s.ifname)
+		peers, ok := scrapePeers(s.ifname)
 		if !ok {
 			continue
 		}
-		// AWG `show transfer` returns cumulative counters per peer; we sum
-		// them above into rx/tx. Deltas are computed against the previous
-		// cumulative total (not per-peer), which is correct as long as peers
-		// are only added/removed via Reconcile (which resets the baseline).
-		var du, dd int64
-		if s.haveLast {
-			du = rx
-			dd = tx
-			// Subtract the previous cumulative total. We track the sum of all
-			// peer counters, not per-peer, so a peer leaving the interface
-			// would cause a negative delta — clamped to zero below.
-			prevRx := sumInt64(s.lastRx)
-			prevTx := sumInt64(s.lastTx)
-			du -= prevRx
-			dd -= prevTx
+		newRx := make(map[string]int64, len(peers))
+		newTx := make(map[string]int64, len(peers))
+		var inboundUp, inboundDown int64
+		var onlinePeers []string
+		for _, peer := range peers {
+			newRx[peer.PublicKey] = peer.Rx
+			newTx[peer.PublicKey] = peer.Tx
+			if peer.LastHandshake > 0 && now-peer.LastHandshake <= handshakeOnlineTTL {
+				onlinePeers = append(onlinePeers, peer.PublicKey)
+			}
+			if !s.haveLast {
+				continue
+			}
+			prevRx, hadRx := s.lastRx[peer.PublicKey]
+			prevTx, hadTx := s.lastTx[peer.PublicKey]
+			if !hadRx || !hadTx {
+				continue
+			}
+			du := peer.Rx - prevRx
+			dd := peer.Tx - prevTx
 			if du < 0 {
 				du = 0
 			}
 			if dd < 0 {
 				dd = 0
 			}
+			inboundUp += du
+			inboundDown += dd
+			if du > 0 || dd > 0 {
+				peerOut = append(peerOut, PeerTraffic{Tag: s.tag, PublicKey: peer.PublicKey, Up: du, Down: dd})
+			}
 		}
-		// Re-acquire lock to persist the new baseline.
+		if len(onlinePeers) > 0 {
+			online[s.tag] = onlinePeers
+		}
+		// Re-acquire lock to persist the new per-peer baseline. A peer that
+		// left the interface simply drops out of the map, so a returning peer
+		// starts a fresh baseline instead of producing a negative delta.
 		m.mu.Lock()
 		if cur, ok := m.procs[s.id]; ok {
-			cur.lastRx = map[string]int64{"_total": rx}
-			cur.lastTx = map[string]int64{"_total": tx}
+			cur.lastRx = newRx
+			cur.lastTx = newTx
 			cur.haveLast = true
 		}
 		m.mu.Unlock()
 
-		if s.haveLast && (du > 0 || dd > 0) {
-			out = append(out, Traffic{Tag: s.tag, Up: du, Down: dd})
+		if s.haveLast && (inboundUp > 0 || inboundDown > 0) {
+			out = append(out, Traffic{Tag: s.tag, Up: inboundUp, Down: inboundDown})
 		}
 	}
-	return out
-}
-
-func sumInt64(m map[string]int64) int64 {
-	var total int64
-	for _, v := range m {
-		total += v
-	}
-	return total
+	return out, peerOut, online
 }
 
 // writeServerConfigFile renders the .conf for an instance and writes it to
@@ -609,43 +639,57 @@ type Traffic struct {
 	Down int64
 }
 
-// scrapeTransfer runs `awg show <iface> transfer` and parses the per-peer byte
-// counters. Output format is one line per peer:
+// peerStat is one peer row of `awg show <iface> dump`: cumulative counters
+// plus the last-handshake timestamp, from which both traffic deltas and
+// online status derive in a single scrape.
+type peerStat struct {
+	PublicKey     string
+	Rx            int64
+	Tx            int64
+	LastHandshake int64
+}
+
+// scrapePeers runs `awg show <iface> dump` and parses the peer rows. The dump
+// format is one interface line followed by one line per peer:
 //
-//	<peer-pubkey>\t<rx-bytes>\t<tx-bytes>
+//	<pubkey>\t<preshared-key>\t<endpoint>\t<allowed-ips>\t<latest-handshake>\t<rx>\t<tx>\t<keepalive>
 //
-// rx is bytes received from the peer (upload from the client's perspective);
-// tx is bytes sent to the peer (download). Returns the summed rx/tx across all
-// peers and ok=false if the interface is down or awg is unavailable.
-func scrapeTransfer(ifname string) (rx, tx int64, ok bool) {
-	cmd := exec.CommandContext(context.Background(), "awg", "show", ifname, "transfer")
-	out, err := cmd.Output()
+// A single dump carries everything CollectTraffic needs (counters + handshake),
+// avoiding two shell-outs per interface per tick. rx is bytes received from
+// the peer (upload from the client's perspective); tx is bytes sent to the
+// peer (download). Returns ok=false when the interface is down or awg is
+// unavailable.
+func scrapePeers(ifname string) ([]peerStat, bool) {
+	out, err := exec.CommandContext(context.Background(), "awg", "show", ifname, "dump").Output()
 	if err != nil {
-		return 0, 0, false
+		return nil, false
 	}
-	scanner := bufio.NewScanner(strings.NewReader(string(out)))
-	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
-	found := false
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
+	return parseAwgDump(string(out))
+}
+
+// parseAwgDump parses `awg show <iface> dump` output: the interface line is
+// skipped, each subsequent line is one peer. ok=false when there is no
+// interface line at all (interface down or absent); an interface with zero
+// peers yields ok=true with an empty slice.
+func parseAwgDump(out string) ([]peerStat, bool) {
+	out = strings.TrimSpace(out)
+	if out == "" {
+		return nil, false
+	}
+	lines := strings.Split(out, "\n")
+	peers := make([]peerStat, 0, len(lines)-1)
+	for _, line := range lines[1:] {
 		fields := strings.Split(line, "\t")
-		if len(fields) < 3 {
+		if len(fields) < 7 {
 			continue
 		}
-		r, errR := strconv.ParseInt(fields[1], 10, 64)
-		t, errT := strconv.ParseInt(fields[2], 10, 64)
-		if errR != nil || errT != nil {
+		hs, errHs := strconv.ParseInt(fields[4], 10, 64)
+		rx, errRx := strconv.ParseInt(fields[5], 10, 64)
+		tx, errTx := strconv.ParseInt(fields[6], 10, 64)
+		if errHs != nil || errRx != nil || errTx != nil {
 			continue
 		}
-		rx += r
-		tx += t
-		found = true
+		peers = append(peers, peerStat{PublicKey: fields[0], Rx: rx, Tx: tx, LastHandshake: hs})
 	}
-	if err := scanner.Err(); err != nil {
-		return rx, tx, found
-	}
-	return rx, tx, found
+	return peers, true
 }

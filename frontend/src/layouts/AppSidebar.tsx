@@ -40,9 +40,11 @@ import { useAllSettings } from '@/api/queries/useAllSettings';
 import './AppSidebar.css';
 
 const SIDEBAR_COLLAPSED_KEY = 'isSidebarCollapsed';
-const DONATE_URL = 'https://donate.sanaei.dev/';
-const DOCS_URL = 'https://docs.sanaei.dev/';
-const REPO_URL = 'https://github.com/MHSanaei/3x-ui';
+// LUCX-HOOK: point sidebar links at the LucX-UI fork, not upstream.
+const DONATE_URL = 'https://yoomoney.ru/to/41001989176429';
+const DOCS_URL = 'https://github.com/AlexeyLCP/lucx-ui#readme';
+const REPO_URL = 'https://github.com/AlexeyLCP/lucx-ui';
+// END LUCX-HOOK
 const LOGOUT_KEY = '__logout__';
 
 type IconName = 'dashboard' | 'inbound' | 'team' | 'groups' | 'setting' | 'tool' | 'cluster' | 'hosts' | 'logout' | 'apidocs' | 'outbound' | 'routing';
