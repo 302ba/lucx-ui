@@ -16,6 +16,10 @@ import (
 	"github.com/mhsanaei/3x-ui/v3/internal/util/json_util"
 	"github.com/mhsanaei/3x-ui/v3/internal/xray"
 
+	// LUCX-HOOK: AWG — restore policy routing synchronously after Xray restarts.
+	"github.com/mhsanaei/3x-ui/v3/internal/awg"
+	// END LUCX-HOOK
+
 	"go.uber.org/atomic"
 )
 
@@ -1140,8 +1144,45 @@ func (s *XrayService) RestartXray(isForce bool) error {
 		return err
 	}
 
+	// LUCX-HOOK: AWG — the Xray-owned tunN device dies with the process, taking
+	// the per-inbound policy route (default dev tunN table 1000+N) with it. The
+	// AWG reconcile cron would re-add it within 10 s, but that leaves a dead
+	// window where routed AWG clients lose internet (VladufQa's "must re-pick
+	// the outbound after restarting Xray" — re-saving the inbound merely
+	// triggered a manual reconcile ahead of the cron). Restore it here,
+	// synchronously with the restart, so there is no window.
+	s.ensureAwgRouting()
+	// END LUCX-HOOK
+
 	return nil
 }
+
+// LUCX-HOOK: ensureAwgRouting re-derives the desired AWG sidecar state from the
+// DB and runs the reconcile-loop convergence (ensureXrayRouting + ensureNatRules)
+// synchronously. Called right after Xray (re)starts so the tunN policy route is
+// restored in the same instant the new tunN appears, not on the next 10 s tick.
+// Best-effort: failures are logged, never fail the Xray start itself.
+func (s *XrayService) ensureAwgRouting() {
+	inbounds, err := s.inboundService.GetAllInbounds()
+	if err != nil {
+		logger.Warning("awg: post-restart routing restore, get inbounds failed:", err)
+		return
+	}
+	var desired []awg.Instance
+	for _, ib := range inbounds {
+		if ib.Protocol != model.AWG || !ib.Enable || ib.NodeID != nil {
+			continue
+		}
+		if inst, ok := awg.InstanceFromInbound(ib); ok {
+			desired = append(desired, inst)
+		}
+	}
+	if len(desired) > 0 {
+		awg.GetManager().Reconcile(desired)
+	}
+}
+
+// END LUCX-HOOK
 
 // tryHotApply attempts to reconcile the running Xray instance with newCfg
 // through the core gRPC API (HandlerService for inbounds/outbounds,
