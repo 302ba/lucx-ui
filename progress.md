@@ -614,6 +614,34 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 ---
 
+## Фиксы по живым репортам тестеров + деплой dev на test2 (2026-07-19, dev-канал)
+
+**1. Футер/ссылки панели → наши.** `AppSidebar.tsx`: версия-бейдж, donate, docs указывали на MHSanaei/sanaei.dev → заменены на AlexeyLCP/lucx-ui + наш ЮMoney (LUCX-HOOK). Обновление через UI проверено: `panel.go` + `update.sh` полностью наши — ставит нашу версию (и stable, и dev).
+
+**2. Онлайн-статус AWG-клиентов (репорт VladufQa «все оффлайн»).** Корень: online-set панели наполняли только Xray stats API и mtg; `awg_job` не вызывал `RefreshLocalOnlineClients` никогда. Фикс: `scrapeTransfer` → `scrapePeers` (один `awg show <iface> dump` = pubkey+rx+tx+handshake); `CollectTraffic` возвращает inbound-дельты + per-peer дельты + online-пиры (handshake < 180с, REKEY_TIMEOUT); джоба мапит pubkey→email и вызывает RefreshLocalOnlineClients каждый тик. **Бонус: per-client трафик** (раньше был только inbound-уровень). Baseline снова per-peer.
+
+**3. Двойной учёт трафика routed-инбаундов** (найден ревизией после #2): TUN inbound получает тег AWG-инбаунда → Xray stats метрит `inbound>>>tag`, а awg_job складывал тот же объём из kernel-счётчиков. Фикс: `routedTags` (как в mtproto_job) — для routed пропускаем inbound-уровень, per-client сохраняем.
+
+**4. Post-restart routing window (репорт VladufQa «приходится повторно выбирать outbound»).** tunN device-bound → умирал с Xray, унося `default dev tunN table 1000+N`; до тика cron (до 10с) routed-клиенты без интернета. Фикс: `ensureAwgRouting()` синхронно в `RestartXray` сразу после `p.Start()`.
+
+**5. Аллокация адресов клиентов из подсети инбаунда** (поймано на test2): инбаунд `10.9.0.1/24`, первый клиент получил `10.8.0.2` — из хардкод-пула, не из подсети туннеля. `defaultAwgClients` теперь берёт базу из `settings.address` (masked), fallback на 10.8.0.0/24 только при пустом/битом address. Тесты.
+
+**6. Деплой на test2 (144.31.157.106) — полный цикл проверен на dev-сборке (lucx.33+dev+47260c95):**
+- Зачистка → чистая установка `install.sh dev-latest` (rolling dev-канал работает)
+- AWG-инбаунд через API: awg1 поднялся, MASQUERADE/FORWARD на месте
+- **Диагностика endpoint**: все проверки с evidence (interface/ip_forward/peers/NAT)
+- **Loopback-клиент** (awgcli0 на 127.0.0.1, с obfuscation-блоком Jc/S/H): handshake прошёл, **онлайн-статус `["peer-laptop"]` в API**, per-client трафик в БД
+- **routeThroughXray**: tun1 UP, `iif awg1 lookup 1001`, `default dev tun1` в table 1001 — вся цепочка после фикса #4
+- Найденный в процессе нюанс: H1-H4 в settings должны быть **строками** (UI так и шлёт; мой ручной API-payload слал числа → InstanceFromInbound молча false). Zod-схема подтверждает string — UI не затронут
+- **test1 (144.31.224.212) с 2026-07-19 НЕ НАШ** — отдан под другой продукт; AGENTS.md обновлён, туда не лезем
+- Панель test2: `http://144.31.157.106:2053/` (порт 2053, basePath `/`), тестовый инбаунд awg-verify на 52901 + клиент peer-laptop
+
+**7. Dependabot-очередь:** 10 version-update PR (создались из GitHub UI grouped updates, не из нашего yml) — закрыты с комментариями; gotcha в AGENTS.md Known Issue #3.
+
+**lucxVersion** → без изменений (`lucx.33` + dev-коммиты; релиз lucx.34 соберём, когда стабилизируем).
+
+---
+
 ## Заметки
 
 - v3.5.0 релиз 2026-07-12 (вчера)
