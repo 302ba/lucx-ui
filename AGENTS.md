@@ -112,7 +112,7 @@ AWG runs as a kernel-interface sidecar managed by `internal/awg.Manager`, exactl
 - **Traffic** (`internal/awg/manager.go`, влито из traffic.go): `awg show <iface> transfer` parsing for per-peer byte accounting (replaces mtg's Prometheus HTTP scrape).
 - **Diagnostics** (`internal/awg/diagnostics.go`): read-only probe chain (interface UP, ip_forward, peers/handshakes, then mode-specific: MASQUERADE+FORWARD or tunN+rule+table). `Diagnose(inst)` → ordered `DiagCheck`s with evidence details; served by `GET /panel/api/inbounds/:id/awgDiagnostics` and rendered by the AWG form's diagnostics modal. Fixes belong to reconcile — diagnostics only makes failures visible.
 - **Platform** (`internal/awg/platform_{linux,other}.go`): `defaultRouteInterface()` for MASQUERADE target + sweep of orphaned awg interfaces from a previous x-ui run.
-- **Job** (`internal/web/job/awg_job.go`): cron `@every 10s` — Reconcile desired inbounds + fold traffic deltas.
+- **Job** (`internal/web/job/awg_job.go`): cron `@every 10s` — Reconcile desired inbounds + fold inbound/per-client traffic deltas + RefreshLocalOnlineClients (AWG online status comes from fresh handshakes, not Xray stats).
 - **Egress** (`internal/web/service/xray.go:injectAwgEgress`): inject TUN inbound into generated Xray config when `routeThroughXray` is set, symmetric with `injectMtprotoEgress`. Per-inbound gateway `10.254.(N%254).1/30` (separate /30 subnet, never conflicts with AWG tunnel subnet). Sniffing `{http,tls,quic, routeOnly:true}` on TUN inbound so domain/geosite rules work for AWG traffic.
 - **Runtime** (`internal/web/runtime/local.go`): delegate AWG `AddInbound`/`DelInbound` to `awg.GetManager()`; `AddUser`/`RemoveUser` are no-ops (peer sync via Reconcile).
 - **CPS** (`internal/awg/cps/`): CPS packet generators (TLS/DNS/SIP/QUIC) + AWGParams (Jc/Jmin/Jmax/S1-S4/H1-H4). TLS and QUIC have browser-specific fingerprints (Chrome/Firefox/Safari).
@@ -177,7 +177,7 @@ Original 3x-ui code remains under GPL-3.0.
 
 ```
 internal/awg/                      AWG sidecar (mirrors internal/mtproto/ — 6 source + 3 test, exact parity)
-├── manager.go                     Manager singleton: Ensure/Reconcile/StopAll/CollectTraffic/SyncPeers + renderServerConf/writeServerConfigFile + natPostUpPostDown + ensureXrayRouting + ensureNatRules/natRulesFor + Traffic/scrapeTransfer
+├── manager.go                     Manager singleton: Ensure/Reconcile/StopAll/CollectTraffic/SyncPeers + renderServerConf/writeServerConfigFile + natPostUpPostDown + ensureXrayRouting + ensureNatRules/natRulesFor + Traffic/PeerTraffic/scrapePeers (one `awg show dump` per iface: counters + handshakes)
 ├── process.go                     Process wrapping awg-quick up/down + procLogWriter + awgConfigDir + awgQuick
 ├── instance.go                    Instance + InstanceFromInbound + fingerprint + PeerSpec
 ├── diagnostics.go                 Diagnose(inst) — read-only probe chain (interface/ip_forward/peers/NAT or TUN rules), prober interface, DiagCheck/Diagnostics
@@ -208,7 +208,7 @@ internal/database/
 
 internal/web/
 ├── runtime/local.go               AWG delegation in AddInbound/DelInbound (LUCX-HOOK)
-├── job/awg_job.go                 AwgJob cron — Reconcile + CollectTraffic + ensureXrayRouting + ensureNatRules
+├── job/awg_job.go                 AwgJob cron — Reconcile + CollectTraffic (inbound + per-client + online) + pubkey→email mapping
 ├── service/xray.go                injectAwgEgress (TUN inbound + per-inbound gateway + sniffing) + AWG exclusion + ensureAwgRouting (post-restart route restore) (LUCX-HOOK)
 ├── service/inbound.go             awgRoutesThroughXray + needRestart (LUCX-HOOK) + inboundAwgHints
 ├── service/client_awg.go          defaultAwgClients — keypair + PSK + address allocation
@@ -345,7 +345,7 @@ x-ui-linux-amd64.tar.gz → x-ui/
 
 **Решено (2026-07-13):** рефактор удалением мёртвого кода. Файлы `params.go`, `cps.go`, `config.go`, `templates.go`, `types.go`, `helpers.go` + 5 тестов были полностью мёртвым кодом — их функции (`GenerateAWGParams`, `GenerateCPS`, `BuildServerConfig`, `RenderPostUp` и др.) вызывались только тестами, ни один живой call site их не использовал. Генерация ключей/обфускации делается во frontend (`createDefaultAwgInboundSettings`). AWG сокращён с 19 до 8 файлов (6 .go + 2 теста) — почти симметрично mtproto (9 файлов). Обновления upstream теперь требуют переноса ~20 файлов вместо 29.
 
-**Дожато (2026-07-18):** финальный slimming до точной паритетности. `traffic.go` влит в `manager.go` (Traffic + scrapeTransfer живут только ради CollectTraffic); `nat_{linux,other}.go` + `orphans_{linux,other}.go` слиты в одну платформенную пару `platform_{linux,other}.go`; заодно вычищены var-гварды неиспользуемых импортов (`strconv`/`syscall`) — мусор от удалённого tun2socks. Итог core-пакета: **6 source + 3 test = 9 файлов**, ровно как mtproto (4 source + 2 platform + 3 test). `cps/` и `signature/` остаются отдельными пакетами — это фичи, которых у mtproto нет.
+**Дожато (2026-07-18):** финальный slimming до точной паритетности. `traffic.go` влит в `manager.go` (Traffic + scrapeTransfer, позже → scrapePeers, живут только ради CollectTraffic); `nat_{linux,other}.go` + `orphans_{linux,other}.go` слиты в одну платформенную пару `platform_{linux,other}.go`; заодно вычищены var-гварды неиспользуемых импортов (`strconv`/`syscall`) — мусор от удалённого tun2socks. Итог core-пакета: **6 source + 3 test = 9 файлов**, ровно как mtproto (4 source + 2 platform + 3 test). `cps/` и `signature/` остаются отдельными пакетами — это фичи, которых у mtproto нет.
 
 ### 2. ~~Сайдкар не проверен в реальном runtime на VPS~~ — ЗАКРЫТО
 
