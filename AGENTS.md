@@ -209,7 +209,7 @@ internal/database/
 internal/web/
 ├── runtime/local.go               AWG delegation in AddInbound/DelInbound (LUCX-HOOK)
 ├── job/awg_job.go                 AwgJob cron — Reconcile + CollectTraffic + ensureXrayRouting + ensureNatRules
-├── service/xray.go                injectAwgEgress (TUN inbound + per-inbound gateway + sniffing) + AWG exclusion (LUCX-HOOK)
+├── service/xray.go                injectAwgEgress (TUN inbound + per-inbound gateway + sniffing) + AWG exclusion + ensureAwgRouting (post-restart route restore) (LUCX-HOOK)
 ├── service/inbound.go             awgRoutesThroughXray + needRestart (LUCX-HOOK) + inboundAwgHints
 ├── service/client_awg.go          defaultAwgClients — keypair + PSK + address allocation
 ├── service/xray_config_inject_test.go  injectAwgEgress tests (gateway, sniffing, outboundTag)
@@ -371,6 +371,8 @@ AWG routeThroughXray **принципиально сложнее** mtproto из-
 | Sniffing | SOCKS inbound сам делает | TUN inbound — нужен явный `sniffing: {routeOnly:true}` (без него domain rules не работают) |
 
 Not to re-add: tun2socks (заменено TUN inbound), DNS в серверный .conf (ломает системный DNS), фиксированные table 100 + gateway 10.254.254.1/30 (ломают мульти-инбаунд).
+
+**Post-restart window (ЗАКРЫТО 2026-07-19):** рестарт Xray (кнопка в панели) убивал tunN и маршрут `default dev tunN table 1000+N` до следующего тика AWG reconcile-cron (до 10 с routed-клиенты без интернета; «повторный выбор outbound» просто триггерил reconcile раньше cron'а). Фикс: `ensureAwgRouting()` в `RestartXray` сразу после `p.Start()` — маршрут восстанавливается синхронно с появлением нового tunN.
 
 ---
 
