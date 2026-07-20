@@ -642,6 +642,18 @@ PostDown = iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -o eth0 -j MASQUERADE; 
 
 ---
 
+## Релиз v3.5.0-lucx.34 (2026-07-20)
+
+**Состав** (всё из записи 2026-07-19 выше): онлайн-статус AWG-клиентов через handshakes, per-client трафик, `ensureAwgRouting` в `RestartXray` (post-restart window закрыто), `routedTags` против двойного учёта routed-инбаундов, аллокация адресов клиентов из подсети инбаунда, наши ссылки в сайдбаре (версия/donate/docs).
+
+**Процесс:** `lucxVersion` bump → `lucx.34`, полная верификация (build/tests/gofumpt/typecheck зелёные), коммит `6849e932`, тег `v3.5.0-lucx.34`. CI release: **guard тег↔source отработал** (тег и config.go совпали), релиз опубликован `prerelease=false`, `/releases/latest` → lucx.34.
+
+**Деплой на test2:** dev → stable lucx.34 (бэкап dev-бинарника, tarball, restart). После рестарта: awg1 поднялся сам (reconcile), routed-цепочка на месте — tun1 UP, `iif awg1 lookup 1001`, `default dev tun1` в table 1001 (маршрут восстановлен reconcile-циклом — фикс post-restart window работает на реальном рестарте сервиса). Пир peer-laptop на месте.
+
+**lucxVersion** → `lucx.34`.
+
+---
+
 ## Заметки
 
 - v3.5.0 релиз 2026-07-12 (вчера)
